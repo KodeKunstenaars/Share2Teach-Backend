@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"github.com/gerhardotto/cmpg323_s2t/db"
+	"github.com/KodeKunstenaars/Share2Teach/db"
 	"log"
 )
 

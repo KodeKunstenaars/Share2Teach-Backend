@@ -1,4 +1,4 @@
-module github.com/gerhardotto/cmpg323_s2t
+module github.com/KodeKunstenaars/Share2Teach
 
 go 1.22.5
 
