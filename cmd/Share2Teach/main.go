@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"github.com/KodeKunstenaars/Share2Teach/internal/aws"
 	"github.com/KodeKunstenaars/Share2Teach/internal/database"
+	"github.com/KodeKunstenaars/Share2Teach/internal/router"
 	"log"
 )
 
@@ -11,8 +11,14 @@ func main() {
 	// Connect to the database
 	connect.Connect()
 
-	//Upload the file to S3
-	upload_file.Upload("/Users/gerhard/Documents/hello_world.txt")
+	// Set up the Gin router
+	r := router.SetupRouter()
+	if r != nil {
+		err := r.Run(":8080")
+		if err != nil {
+			return
+		}
+	}
 
 	// Ensure disconnection from the database when the main function ends
 	defer func() {
