@@ -1,13 +1,17 @@
 package router
 
 import (
-	"bytes"
+	"context"
 	"fmt"
 	"github.com/KodeKunstenaars/Share2Teach/internal/aws/config"
 	"github.com/KodeKunstenaars/Share2Teach/internal/aws/s3"
+	"github.com/KodeKunstenaars/Share2Teach/internal/db"
+	"github.com/KodeKunstenaars/Share2Teach/internal/models"
 	"github.com/gin-gonic/gin"
-	"io"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
+	"os"
+	"time"
 )
 
 func SetupRouter() *gin.Engine {
@@ -23,6 +27,23 @@ func SetupRouter() *gin.Engine {
 	// Initialize S3 client
 	s3Client := s3.NewS3Client(sess)
 
+	// Retrieve MongoDB URI from environment variable
+	mongoURI := os.Getenv("MONGODB_URI")
+	if mongoURI == "" {
+		fmt.Println("MONGODB_URI environment variable not set")
+		return nil
+	}
+
+	// Initialize MongoDB client with Atlas connection string
+	mongoClient, err := db.InitMongo(mongoURI)
+	if err != nil {
+		fmt.Println("Failed to initialize MongoDB client:", err)
+		return nil
+	}
+
+	// Select the database and collection
+	collection := mongoClient.Database("Share2Teach").Collection("metadata")
+
 	// Define the file upload endpoint
 	router.POST("/upload", func(c *gin.Context) {
 		file, header, err := c.Request.FormFile("file")
@@ -33,27 +54,34 @@ func SetupRouter() *gin.Engine {
 
 		defer file.Close()
 
-		// Read the file content into a buffer
-		buf := bytes.NewBuffer(nil)
-		if _, err := io.Copy(buf, file); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
-			return
+		// Generate a new ObjectID for the file metadata
+		metadataID := primitive.NewObjectID()
+
+		// Prepare the metadata with the ID
+		metadata := models.FileMetadata{
+			ID:         metadataID.Hex(), // Convert ObjectID to a string for storage
+			Filename:   header.Filename,
+			Bucket:     "share2teach",
+			Key:        metadataID.Hex(), // Use the same ID as the S3 key
+			Size:       header.Size,
+			UploadedAt: time.Now(),
 		}
 
-		// Create a ReadSeeker from the buffer
-		readSeeker := bytes.NewReader(buf.Bytes())
-
-		// Generate the key name for the uploaded file in S3
-		key := header.Filename
-
-		// Upload the file to S3
-		err = s3.UploadFile(s3Client, "share2teach", key, readSeeker)
+		// Upload the file to S3 using the metadata ID as the key
+		err = s3.UploadFile(s3Client, "share2teach", metadataID.Hex(), file)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload file"})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("File %s uploaded successfully", key)})
+		// Store metadata in MongoDB
+		_, err = collection.InsertOne(context.Background(), metadata)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store metadata"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("File %s uploaded and metadata stored successfully", header.Filename)})
 	})
 
 	return router
