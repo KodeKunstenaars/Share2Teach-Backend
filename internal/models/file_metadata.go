@@ -10,4 +10,5 @@ type FileMetadata struct {
 	Key        string    `bson:"key"`           // S3 object key (same as MongoDB ID)
 	Size       int64     `bson:"size"`          // File size in bytes
 	UploadedAt time.Time `bson:"uploaded_at"`   // Upload timestamp
+	Hash       string    `bson:"hash"`          // SHA-256 hash of the file
 }
