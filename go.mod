@@ -6,6 +6,7 @@ require (
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/aws/aws-sdk-go-v2 v1.30.3
 	github.com/gin-gonic/gin v1.10.0
+	github.com/h2non/filetype v1.1.3
 	github.com/joho/godotenv v1.5.1
 	go.mongodb.org/mongo-driver v1.16.0
 )

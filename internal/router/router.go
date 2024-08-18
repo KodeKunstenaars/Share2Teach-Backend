@@ -6,17 +6,22 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
+	"mime"
+	"mime/multipart"
+	"net/http"
+	"os"
+	"path/filepath"
+	"time"
+
 	"github.com/KodeKunstenaars/Share2Teach/internal/aws/config"
 	"github.com/KodeKunstenaars/Share2Teach/internal/aws/s3"
 	"github.com/KodeKunstenaars/Share2Teach/internal/db"
 	"github.com/KodeKunstenaars/Share2Teach/internal/duplicatechecker"
 	"github.com/KodeKunstenaars/Share2Teach/internal/models"
 	"github.com/gin-gonic/gin"
+	"github.com/h2non/filetype"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"io"
-	"net/http"
-	"os"
-	"time"
 )
 
 func SetupRouter() *gin.Engine {
@@ -60,23 +65,40 @@ func SetupRouter() *gin.Engine {
 			return
 		}
 
-		defer file.Close()
+		defer func(file multipart.File) {
+			if err := file.Close(); err != nil {
+				fmt.Println("Failed to close file:", err)
+			}
+		}(file)
 
-		// Create a new SHA-256 hash object
-		hash := sha256.New()
-
-		// Create a buffer to store the file content
-		buf := new(bytes.Buffer)
-		writer := io.MultiWriter(hash, buf)
-
-		// Copy the file content to the writer (hash and buffer)
-		if _, err := io.Copy(writer, file); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
+		// Read the file content into a buffer
+		fileBytes, err := io.ReadAll(file)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file content"})
 			return
 		}
 
-		// Get the hash as a hex string
+		// Detect the file type based on the content
+		kind, _ := filetype.Match(fileBytes)
+		var fileType string
+		if kind == filetype.Unknown {
+			// Fallback to checking the file extension if type is unknown
+			ext := filepath.Ext(header.Filename)
+			fileType = mime.TypeByExtension(ext)
+			if fileType == "" {
+				fileType = "application/octet-stream" // Final fallback if extension is also unrecognized
+			}
+		} else {
+			fileType = kind.MIME.Value
+		}
+
+		// Calculate the hash
+		hash := sha256.New()
+		hash.Write(fileBytes)
 		fileHash := hex.EncodeToString(hash.Sum(nil))
+
+		// Generate an ObjectID for the first-time upload
+		objectID := primitive.NewObjectID().Hex()
 
 		// Check for duplicate
 		existingMetadata, err := checker.GetMetadataByHash(context.Background(), fileHash)
@@ -86,16 +108,19 @@ func SetupRouter() *gin.Engine {
 		}
 
 		var s3Key string
-		if existingMetadata != nil {
-			// Duplicate found, use the existing S3 key
-			s3Key = existingMetadata.Key
-		} else {
-			// No duplicate, generate a new ObjectID for the file metadata
-			metadataID := primitive.NewObjectID()
-			s3Key = metadataID.Hex()
+		var mongoID string
 
-			// Upload the file to S3 using the metadata ID as the key
-			readSeeker := bytes.NewReader(buf.Bytes())
+		if existingMetadata != nil {
+			// Duplicate found, reuse the existing S3 key
+			s3Key = existingMetadata.Key
+			mongoID = primitive.NewObjectID().Hex() // Generate a new MongoDB ID
+		} else {
+			// No duplicate, use the same ObjectID for both MongoDB `_id` and S3 key
+			s3Key = objectID
+			mongoID = objectID
+
+			// Upload the file to S3 using the ObjectID as the key
+			readSeeker := bytes.NewReader(fileBytes)
 			err = s3.UploadFile(s3Client, "share2teach", s3Key, readSeeker)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload file"})
@@ -103,12 +128,13 @@ func SetupRouter() *gin.Engine {
 			}
 		}
 
-		// Prepare the metadata with the ID and hash
+		// Prepare the metadata with the ID, hash, and file type
 		metadata := models.FileMetadata{
-			ID:         primitive.NewObjectID().Hex(), // Convert ObjectID to a string for storage
+			ID:         mongoID, // Use the same ID for both MongoDB and S3 key on first upload
 			Filename:   header.Filename,
+			FileType:   fileType,
 			Bucket:     "share2teach",
-			Key:        s3Key, // Use the existing or new S3 key
+			Key:        s3Key, // Reuse the existing S3 key if duplicate, or use the new one
 			Size:       header.Size,
 			UploadedAt: time.Now(),
 			Hash:       fileHash, // Store the hash of the file
