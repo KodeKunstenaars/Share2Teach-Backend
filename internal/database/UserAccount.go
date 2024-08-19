@@ -22,14 +22,14 @@ import (
     "golang.org/x/crypto/bcrypt"
 )
 
-// User struct to represent a user
+// User to represent a user
 type User struct {
     Username string `json:"username" bson:"username"`
     Email    string `json:"email" bson:"email"`
     Password string `json:"-" bson:"password"`
 }
 
-// MongoDB connection string and database/collection names
+// MongoDB connection string and database
 const (
     mongoURI        = "mongodb://localhost:27017"
     dbName          = "testdb"
