@@ -25,9 +25,9 @@ type User struct {
 
 var userCollection *mongo.Collection
 
-// Initialize the MongoDB connection and collection (assuming you have a connection already set up)
+// Initialize the MongoDB connection and collection
 func init() {
-	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017"))
+	client, err := mongo.NewClient(options.Client().ApplyURI(uri)) //get the URI
 	if err != nil {
 		log.Fatal(err)
 	}
