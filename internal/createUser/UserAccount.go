@@ -1,20 +1,16 @@
-package createUser
+package userAccount
 
 import (
-	"bufio"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
-	"os"
-	"strings"
 	"time"
 
+	//try import mongo connection package
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type User struct {
@@ -25,22 +21,10 @@ type User struct {
 
 var userCollection *mongo.Collection
 
-// Initialize the MongoDB connection and collection
+// Initialize the MongoDB connection
 func init() {
-	client, err := mongo.NewClient(options.Client().ApplyURI(uri)) //get the URI
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	err = client.Connect(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	userCollection = client.Database("Share2Teach").Collection("users") //get the name of the log in
+	client := InitMongo("mongodb://localhost:27017")                    // Call the InitMongo function
+	userCollection = client.Database("Share2Teach").Collection("login") // .collection needs to be login
 }
 
 // Helper function to hash the password using SHA-256
@@ -98,20 +82,12 @@ func loginUser(username, password string) (bool, error) {
 	return true, nil
 }
 
-// Function to get user input from the console
-func getUserInput(prompt string) string {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print(prompt)
-	input, _ := reader.ReadString('\n')
-	return strings.TrimSpace(input)
-}
-
 func main() {
-	// Get user input for account creation
-	username := getUserInput("Enter username: ")
-	password := getUserInput("Enter password: ")
+	// Example usage:
+	username := "exampleUser"
+	password := "examplePassword"
 
-	// Create user account
+	// Create a user account
 	err := createUser(username, password)
 	if err != nil {
 		fmt.Println("Error creating user:", err)
@@ -119,12 +95,8 @@ func main() {
 		fmt.Println("User created successfully")
 	}
 
-	// Get user input for login
-	loginUsername := getUserInput("Enter username for login: ")
-	loginPassword := getUserInput("Enter password for login: ")
-
-	// Attempt login
-	isAuthenticated, err := loginUser(loginUsername, loginPassword)
+	// Attempt to login
+	isAuthenticated, err := loginUser(username, password)
 	if err != nil {
 		fmt.Println("Login failed:", err)
 	} else if isAuthenticated {
