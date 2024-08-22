@@ -11,7 +11,7 @@ require (
 	go.mongodb.org/mongo-driver v1.16.1
 )
 
-require github.com/jung-kurt/gofpdf/v2 v2.17.3 // indirect
+require github.com/jung-kurt/gofpdf/v2 v2.17.3
 
 require (
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect

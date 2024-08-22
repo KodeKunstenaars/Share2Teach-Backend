@@ -16,6 +16,7 @@ import (
 	customS3 "github.com/KodeKunstenaars/Share2Teach/internal/aws/s3"
 	"github.com/KodeKunstenaars/Share2Teach/internal/duplicatechecker"
 	"github.com/KodeKunstenaars/Share2Teach/internal/models"
+	"github.com/KodeKunstenaars/Share2Teach/internal/pdfconvert"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/gin-gonic/gin"
 	"github.com/h2non/filetype"
@@ -45,6 +46,9 @@ func InitUploadRoutes(router *gin.Engine, s3Client *s3.S3, checker *duplicateche
 			return
 		}
 
+		var pdfBytes []byte
+		var pdfFilename string
+
 		// Detect the file type based on the content
 		kind, _ := filetype.Match(fileBytes)
 		var fileType string
@@ -59,9 +63,29 @@ func InitUploadRoutes(router *gin.Engine, s3Client *s3.S3, checker *duplicateche
 			fileType = kind.MIME.Value
 		}
 
+		// if the file is not a PDF, the convertToPDF function is called and the file is onverted into a PDF
+		if fileType == "application/pdf" {
+			pdfBytes = fileBytes
+			pdfFilename = header.Filename
+		} else {
+			// Convert the file to PDF
+			pdfBytes, err = pdfconvert.ConvertTextToPDF(fileBytes, header.Filename)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to convert file to PDF"})
+				return
+			}
+
+			// update the file to have the .pdf extension
+			pdfFilename = filepath.Base(header.Filename)
+			pdfFilename = pdfFilename[:len(pdfFilename)-len(filepath.Ext(pdfFilename))] + ".pdf"
+			// MIME type is updated to pdf
+			fileType = "application/pdf"
+
+		}
+
 		// Calculate the hash
 		hash := sha256.New()
-		hash.Write(fileBytes)
+		hash.Write(pdfBytes)
 		fileHash := hex.EncodeToString(hash.Sum(nil))
 
 		// Generate an ObjectID for the first-time upload
@@ -87,7 +111,7 @@ func InitUploadRoutes(router *gin.Engine, s3Client *s3.S3, checker *duplicateche
 			mongoID = objectID
 
 			// Upload the file to S3 using the ObjectID as the key
-			readSeeker := bytes.NewReader(fileBytes)
+			readSeeker := bytes.NewReader(pdfBytes)
 			err = customS3.UploadFile(s3Client, "share2teach", s3Key, readSeeker)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload file"})
@@ -98,11 +122,11 @@ func InitUploadRoutes(router *gin.Engine, s3Client *s3.S3, checker *duplicateche
 		// Prepare the metadata with the ID, hash, and file type
 		metadata := models.FileMetadata{
 			ID:         mongoID, // Use the same ID for both MongoDB and S3 key on first upload
-			Filename:   header.Filename,
+			Filename:   pdfFilename,
 			FileType:   fileType,
 			Bucket:     "share2teach",
 			Key:        s3Key, // Reuse the existing S3 key if duplicate, or use the new one
-			Size:       header.Size,
+			Size:       int64(len(pdfBytes)),
 			UploadedAt: time.Now().UTC().Add(2 * time.Hour),
 			Hash:       fileHash, // Store the hash of the file
 		}
@@ -114,6 +138,6 @@ func InitUploadRoutes(router *gin.Engine, s3Client *s3.S3, checker *duplicateche
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("File %s uploaded and metadata stored successfully", header.Filename)})
+		c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("File %s uploaded and metadata stored successfully", pdfFilename)})
 	})
 }
