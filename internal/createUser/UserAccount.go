@@ -2,106 +2,120 @@ package userAccount
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"errors"
+	"encoding/json"
 	"fmt"
-	"time"
+	"log"
+	"net/http"
 
-	//try import mongo connection package
-	"go.mongodb.org/mongo-driver/bson"
+	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
 
+// User represents a user in the system
 type User struct {
 	ID       string `bson:"_id,omitempty"`
-	Username string `bson:"username"`
-	Password string `bson:"password"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
 }
 
-var userCollection *mongo.Collection
-
-// Initialize the MongoDB connection
-func init() {
-	client := InitMongo("mongodb://localhost:27017")                    // Call the InitMongo function
-	userCollection = client.Database("Share2Teach").Collection("login") // .collection needs to be login
-}
-
-// Helper function to hash the password using SHA-256
-func hashPassword(password string) string {
-	hash := sha256.New()
-	hash.Write([]byte(password))
-	return hex.EncodeToString(hash.Sum(nil))
-}
-
-// Function to create a new user account
-func createUser(username, password string) error {
-	hashedPassword := hashPassword(password)
-
-	user := User{
-		Username: username,
-		Password: hashedPassword,
+// Global variables
+var (
+	client      *mongo.Client
+	oauthConfig = &oauth2.Config{
+		ClientID:     "your-client-id",
+		ClientSecret: "your-client-secret",
+		RedirectURL:  "http://localhost:8080/callback",
+		Scopes:       []string{"email", "profile"},
+		Endpoint:     google.Endpoint,
 	}
+)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// Check if the user already exists
-	var existingUser User
-	err := userCollection.FindOne(ctx, bson.M{"username": username}).Decode(&existingUser)
-	if err == nil {
-		return errors.New("user already exists")
-	} else if err != mongo.ErrNoDocuments {
-		return err
-	}
-
-	_, err = userCollection.InsertOne(ctx, user)
+// InitMongo initializes the MongoDB client and connects to the database
+func InitMongo(uri string) error {
+	var err error
+	client, err = mongo.Connect(context.TODO(), options.Client().ApplyURI(uri))
 	if err != nil {
 		return err
 	}
-
-	return nil
+	return client.Ping(context.TODO(), nil)
 }
 
-// Function to login a user
-func loginUser(username, password string) (bool, error) {
-	hashedPassword := hashPassword(password)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
+// CreateUser handles the creation of a new user
+func CreateUser(w http.ResponseWriter, r *http.Request) {
 	var user User
-	err := userCollection.FindOne(ctx, bson.M{"username": username, "password": hashedPassword}).Decode(&user)
+	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return false, errors.New("invalid username or password")
-		}
-		return false, err
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
 	}
 
-	return true, nil
+	// Hash the user's password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, "Error hashing password", http.StatusInternalServerError)
+		return
+	}
+	user.Password = string(hashedPassword)
+
+	// Save the user in MongoDB
+	collection := client.Database("your_database").Collection("users")
+	_, err = collection.InsertOne(context.TODO(), user)
+	if err != nil {
+		http.Error(w, "Error saving user", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	fmt.Fprintf(w, "User created successfully")
+}
+
+// Login handles the OAuth2 login process
+func Login(w http.ResponseWriter, r *http.Request) {
+	url := oauthConfig.AuthCodeURL("state", oauth2.AccessTypeOffline)
+	http.Redirect(w, r, url, http.StatusFound)
+}
+
+// Callback handles the OAuth2 callback after authentication
+func Callback(w http.ResponseWriter, r *http.Request) {
+	code := r.URL.Query().Get("code")
+
+	token, err := oauthConfig.Exchange(context.Background(), code)
+	if err != nil {
+		http.Error(w, "Failed to exchange token", http.StatusInternalServerError)
+		return
+	}
+
+	client := oauthConfig.Client(context.Background(), token)
+	userInfoResp, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
+	if err != nil {
+		http.Error(w, "Failed to get user info", http.StatusInternalServerError)
+		return
+	}
+	defer userInfoResp.Body.Close()
+
+	var userInfo map[string]interface{}
+	json.NewDecoder(userInfoResp.Body).Decode(&userInfo)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(userInfo)
 }
 
 func main() {
-	// Example usage:
-	username := "exampleUser"
-	password := "examplePassword"
-
-	// Create a user account
-	err := createUser(username, password)
+	err := InitMongo("your-mongodb-uri")
 	if err != nil {
-		fmt.Println("Error creating user:", err)
-	} else {
-		fmt.Println("User created successfully")
+		log.Fatal(err)
 	}
 
-	// Attempt to login
-	isAuthenticated, err := loginUser(username, password)
-	if err != nil {
-		fmt.Println("Login failed:", err)
-	} else if isAuthenticated {
-		fmt.Println("User logged in successfully")
-	} else {
-		fmt.Println("Invalid login credentials")
-	}
+	r := mux.NewRouter()
+	r.HandleFunc("/create_user", CreateUser).Methods("POST")
+	r.HandleFunc("/login", Login).Methods("GET")
+	r.HandleFunc("/callback", Callback).Methods("GET")
+
+	log.Println("Server starting on :8080")
+	http.ListenAndServe(":8080", r)
 }
