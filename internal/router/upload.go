@@ -1,4 +1,4 @@
-package upload
+package router
 
 import (
 	"bytes"
@@ -6,6 +6,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	customS3 "github.com/KodeKunstenaars/Share2Teach/internal/aws"
+	"github.com/KodeKunstenaars/Share2Teach/internal/db"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -13,9 +15,6 @@ import (
 	"path/filepath"
 	"time"
 
-	customS3 "github.com/KodeKunstenaars/Share2Teach/internal/aws/s3"
-	"github.com/KodeKunstenaars/Share2Teach/internal/duplicatechecker"
-	"github.com/KodeKunstenaars/Share2Teach/internal/models"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/gin-gonic/gin"
 	"github.com/h2non/filetype"
@@ -24,7 +23,7 @@ import (
 )
 
 // InitUploadRoutes initializes the routes for file uploads
-func InitUploadRoutes(router *gin.Engine, s3Client *s3.S3, checker *duplicatechecker.Checker, collection *mongo.Collection) {
+func InitUploadRoutes(router *gin.Engine, s3Client *s3.S3, collection *mongo.Collection) {
 	router.POST("/upload", func(c *gin.Context) {
 		file, header, err := c.Request.FormFile("file")
 		if err != nil {
@@ -67,44 +66,26 @@ func InitUploadRoutes(router *gin.Engine, s3Client *s3.S3, checker *duplicateche
 		// Generate an ObjectID for the first-time upload
 		objectID := primitive.NewObjectID().Hex()
 
-		// Check for duplicate
-		existingMetadata, err := checker.GetMetadataByHash(context.Background(), fileHash)
+		var s3Key = objectID
+		var mongoID = objectID
+
+		// Upload the file to S3 using the ObjectID as the key
+		readSeeker := bytes.NewReader(fileBytes)
+		err = customS3.UploadFile(s3Client, "share2teach", s3Key, readSeeker)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check for duplicates"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload file"})
 			return
 		}
 
-		var s3Key string
-		var mongoID string
-
-		if existingMetadata != nil {
-			// Duplicate found, reuse the existing S3 key
-			s3Key = existingMetadata.Key
-			mongoID = primitive.NewObjectID().Hex() // Generate a new MongoDB ID
-		} else {
-			// No duplicate, use the same ObjectID for both MongoDB `_id` and S3 key
-			s3Key = objectID
-			mongoID = objectID
-
-			// Upload the file to S3 using the ObjectID as the key
-			readSeeker := bytes.NewReader(fileBytes)
-			err = customS3.UploadFile(s3Client, "share2teach", s3Key, readSeeker)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload file"})
-				return
-			}
-		}
-
 		// Prepare the metadata with the ID, hash, and file type
-		metadata := models.FileMetadata{
-			ID:         mongoID, // Use the same ID for both MongoDB and S3 key on first upload
+		metadata := db.FileMetadata{
+			ID:         mongoID,
 			Filename:   header.Filename,
 			FileType:   fileType,
-			Bucket:     "share2teach",
-			Key:        s3Key, // Reuse the existing S3 key if duplicate, or use the new one
+			Key:        s3Key,
 			Size:       header.Size,
 			UploadedAt: time.Now().UTC().Add(2 * time.Hour),
-			Hash:       fileHash, // Store the hash of the file
+			Hash:       fileHash,
 		}
 
 		// Store metadata in MongoDB

@@ -2,13 +2,10 @@ package router
 
 import (
 	"fmt"
+	"github.com/KodeKunstenaars/Share2Teach/internal/aws"
 	"os"
 
-	"github.com/KodeKunstenaars/Share2Teach/internal/aws/config"
-	"github.com/KodeKunstenaars/Share2Teach/internal/aws/s3"
 	"github.com/KodeKunstenaars/Share2Teach/internal/db"
-	"github.com/KodeKunstenaars/Share2Teach/internal/duplicatechecker"
-	"github.com/KodeKunstenaars/Share2Teach/internal/router/upload"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,14 +13,14 @@ func SetupRouter() *gin.Engine {
 	router := gin.Default()
 
 	// Initialize AWS session
-	sess, err := config.InitSession()
+	sess, err := aws.InitSession()
 	if err != nil {
 		fmt.Println("Failed to initialize AWS session:", err)
 		return nil
 	}
 
 	// Initialize S3 client
-	s3Client := s3.NewS3Client(sess)
+	s3Client := aws.NewS3Client(sess)
 
 	// Retrieve MongoDB URI from environment variable
 	mongoURI := os.Getenv("MONGODB_URI")
@@ -42,11 +39,8 @@ func SetupRouter() *gin.Engine {
 	// Select the database and collection
 	collection := mongoClient.Database("Share2Teach").Collection("metadata")
 
-	// Create a new duplicate checker
-	checker := duplicatechecker.NewChecker(collection)
-
-	// Initialize upload routes
-	upload.InitUploadRoutes(router, s3Client, checker, collection)
+	// Initialize upload route
+	InitUploadRoutes(router, s3Client, collection)
 
 	return router
 }

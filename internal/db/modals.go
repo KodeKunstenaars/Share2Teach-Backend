@@ -1,4 +1,4 @@
-package models
+package db
 
 import "time"
 
@@ -9,7 +9,6 @@ type FileMetadata struct {
 	FileType   string    `bson:"filetype"`
 	Subject    string    `bson:"subject"`
 	Grade      int       `bson:"grade"`
-	Bucket     string    `bson:"bucket"`
 	Key        string    `bson:"key"`
 	Size       int64     `bson:"size"`
 	UploadedAt time.Time `bson:"uploaded_at"`
