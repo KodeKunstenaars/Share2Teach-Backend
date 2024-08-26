@@ -1,13 +1,18 @@
-package userAccount
+package createUser
 
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"log"
 	"net/http"
+	"os"
 
-	"github.com/gorilla/mux"
+	//"fmt"
+	//"log"
+
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/crypto/bcrypt"
@@ -15,107 +20,159 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
-// User represents a user in the system
-type User struct {
-	ID       string `bson:"_id,omitempty"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Email    string `json:"email"`
-}
-
-// Global variables
 var (
-	client      *mongo.Client
+	client *mongo.Client
+	// Replace with your actual Google OAuth credentials
 	oauthConfig = &oauth2.Config{
-		ClientID:     "your-client-id",
-		ClientSecret: "your-client-secret",
-		RedirectURL:  "http://localhost:8080/callback",
-		Scopes:       []string{"email", "profile"},
+		ClientID:     "<YOUR_GOOGLE_CLIENT_ID>",
+		ClientSecret: "<YOUR_GOOGLE_CLIENT_SECRET>",
+		RedirectURL:  "http://localhost:8080/auth/google/callback", //can only change when home screen front end is available
+		Scopes:       []string{"profile", "email"},
 		Endpoint:     google.Endpoint,
 	}
+	oauthStateString = "random" // Generate a secure state string in production
 )
 
-// InitMongo initializes the MongoDB client and connects to the database
-func InitMongo(uri string) error {
-	var err error
-	client, err = mongo.Connect(context.TODO(), options.Client().ApplyURI(uri))
-	if err != nil {
-		return err
-	}
-	return client.Ping(context.TODO(), nil)
+// User model
+type User struct {
+	ID       primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	Email    string             `json:"email" bson:"email"`
+	Name     string             `json:"name" bson:"name"`
+	Role     string             `json:"role" bson:"role"`
+	Username string             `json:"username" bson:"username"`
+	GoogleID string             `json:"googleId" bson:"googleId"`
+	Password string             `json:"password,omitempty" bson:"password,omitempty"`
 }
 
-// CreateUser handles the creation of a new user
-func CreateUser(w http.ResponseWriter, r *http.Request) {
-	var user User
-	err := json.NewDecoder(r.Body).Decode(&user)
+func init() {
+	// Load environment variables
+
+	if err := godotenv.Load(); err != nil {
+		panic("Error loading .env file")
+	}
+
+	// Initialize MongoDB client
+	mongoURI := os.Getenv("MONGO_URI")
+	var err error
+	client, err = mongo.Connect(context.Background(), options.Client().ApplyURI(mongoURI)) //call connect
 	if err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
+		panic(err)
+	}
+
+	r := gin.Default()
+
+	// Routes
+	r.POST("/register", registerUser)
+	r.POST("/login", loginUser)
+	r.GET("/auth/google", handleGoogleLogin)
+	r.GET("/auth/google/callback", handleGoogleCallback)
+	r.GET("/profile", profile)
+
+	r.Run(":8080")
+}
+
+func registerUser(c *gin.Context) {
+	var user User
+	if err := c.BindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Hash the user's password
+	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
-		http.Error(w, "Error hashing password", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
 		return
 	}
 	user.Password = string(hashedPassword)
 
-	// Save the user in MongoDB
-	collection := client.Database("your_database").Collection("users")
-	_, err = collection.InsertOne(context.TODO(), user)
+	collection := client.Database("Share2Teach").Collection("user_info")
+	_, err = collection.InsertOne(context.Background(), user)
 	if err != nil {
-		http.Error(w, "Error saving user", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	fmt.Fprintf(w, "User created successfully")
+	c.JSON(http.StatusCreated, user)
 }
 
-// Login handles the OAuth2 login process
-func Login(w http.ResponseWriter, r *http.Request) {
-	url := oauthConfig.AuthCodeURL("state", oauth2.AccessTypeOffline)
-	http.Redirect(w, r, url, http.StatusFound)
+func loginUser(c *gin.Context) {
+	var credentials struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	if err := c.BindJSON(&credentials); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	collection := client.Database("Share2Teach").Collection("user_info")
+	var user User
+	err := collection.FindOne(context.Background(), bson.M{"email": credentials.Email}).Decode(&user)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+		return
+	}
+
+	// Compare passwords
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(credentials.Password))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Login successful"})
 }
 
-// Callback handles the OAuth2 callback after authentication
-func Callback(w http.ResponseWriter, r *http.Request) {
-	code := r.URL.Query().Get("code")
+func handleGoogleLogin(c *gin.Context) {
+	url := oauthConfig.AuthCodeURL(oauthStateString)
+	c.Redirect(http.StatusTemporaryRedirect, url)
+}
+
+func handleGoogleCallback(c *gin.Context) {
+	code := c.DefaultQuery("code", "")
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Code not found"})
+		return
+	}
 
 	token, err := oauthConfig.Exchange(context.Background(), code)
 	if err != nil {
-		http.Error(w, "Failed to exchange token", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	client := oauthConfig.Client(context.Background(), token)
-	userInfoResp, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
+	userInfo, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
-		http.Error(w, "Failed to get user info", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	defer userInfoResp.Body.Close()
+	defer userInfo.Body.Close()
 
-	var userInfo map[string]interface{}
-	json.NewDecoder(userInfoResp.Body).Decode(&userInfo)
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(userInfo)
-}
-
-func main() {
-	err := InitMongo("your-mongodb-uri")
-	if err != nil {
-		log.Fatal(err)
+	var user User
+	if err := json.NewDecoder(userInfo.Body).Decode(&user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
-	r := mux.NewRouter()
-	r.HandleFunc("/create_user", CreateUser).Methods("POST")
-	r.HandleFunc("/login", Login).Methods("GET")
-	r.HandleFunc("/callback", Callback).Methods("GET")
+	collection := client.Database("Share2Teach").Collection("user_info")
+	var existingUser User
+	err = collection.FindOne(context.Background(), bson.M{"googleId": user.GoogleID}).Decode(&existingUser)
+	if err != nil {
+		_, err = collection.InsertOne(context.Background(), user)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
 
-	log.Println("Server starting on :8080")
-	http.ListenAndServe(":8080", r)
+	c.JSON(http.StatusOK, user)
+}
+
+func profile(c *gin.Context) {
+	// For demonstration, just returning a static response.
+	// Implement user authentication and retrieval logic as needed.
+	c.JSON(http.StatusOK, gin.H{"message": "Profile data"})
 }
