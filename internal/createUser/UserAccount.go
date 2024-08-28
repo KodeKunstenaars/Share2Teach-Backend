@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	client *mongo.Client
+	Client *mongo.Client
 	// Replace with your actual Google OAuth credentials
 	oauthConfig = &oauth2.Config{
 		ClientID:     "<YOUR_GOOGLE_CLIENT_ID>",
@@ -54,7 +54,7 @@ func init() {
 	// Initialize MongoDB client
 	mongoURI := os.Getenv("MONGO_URI")
 	var err error
-	client, err = mongo.Connect(context.Background(), options.Client().ApplyURI(mongoURI)) //call connect
+	Client, err = mongo.Connect(context.Background(), options.Client().ApplyURI(mongoURI)) //call connect
 	if err != nil {
 		panic(err)
 	}
@@ -86,7 +86,7 @@ func registerUser(c *gin.Context) {
 	}
 	user.Password = string(hashedPassword)
 
-	collection := client.Database("Share2Teach").Collection("user_info")
+	collection := Client.Database("Share2Teach").Collection("user_info")
 	_, err = collection.InsertOne(context.Background(), user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -107,7 +107,7 @@ func loginUser(c *gin.Context) {
 		return
 	}
 
-	collection := client.Database("Share2Teach").Collection("user_info")
+	collection := Client.Database("Share2Teach").Collection("user_info")
 	var user User
 	err := collection.FindOne(context.Background(), bson.M{"email": credentials.Email}).Decode(&user)
 	if err != nil {
@@ -157,7 +157,7 @@ func handleGoogleCallback(c *gin.Context) {
 		return
 	}
 
-	collection := client.Database("Share2Teach").Collection("user_info")
+	collection := Client.Database("Share2Teach").Collection("user_info")
 	var existingUser User
 	err = collection.FindOne(context.Background(), bson.M{"googleId": user.GoogleID}).Decode(&existingUser)
 	if err != nil {
