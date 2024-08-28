@@ -22,7 +22,7 @@ import (
 
 var (
 	Client *mongo.Client
-	// Replace with your actual Google OAuth credentials
+	// Replace with actual Google OAuth credentials
 	oauthConfig = &oauth2.Config{
 		ClientID:     "<YOUR_GOOGLE_CLIENT_ID>",
 		ClientSecret: "<YOUR_GOOGLE_CLIENT_SECRET>",
