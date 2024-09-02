@@ -1,6 +1,6 @@
 package models
 
-// FileMetadata represents the metadata for a file
+// FAQs for faq page
 type FAQ struct {
 	ID       string `bson:"_id,omitempty"`
 	Question string `bson:"question"`
