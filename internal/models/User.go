@@ -2,19 +2,19 @@ package models
 
 import (
 	"errors"
-	"time"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type User struct {
-	ID        int       `json:"id"`
-	FirstName string    `json:"first_name"`
-	LastName  string    `json:"last_name"`
-	Email     string    `json:"email"`
-	Password  string    `json:"password"`
-	CreatedAt time.Time `json:"-"`
-	UpdatedAt time.Time `json:"-"`
+	ID            primitive.ObjectID `json:"id"`
+	FirstName     string             `json:"first_name"`
+	LastName      string             `json:"last_name"`
+	Email         string             `json:"email"`
+	Password      string             `json:"password"`
+	Role          string             `json:"role"`
+	Qualification string             `json:"qualification"`
 }
 
 func (u *User) PasswordMatches(plainText string) (bool, error) {

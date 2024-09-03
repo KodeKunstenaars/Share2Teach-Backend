@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Auth struct {
@@ -22,9 +23,9 @@ type Auth struct {
 }
 
 type jwtUser struct {
-	ID        int    `json:"id"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
+	ID        primitive.ObjectID `json:"id"`
+	FirstName string             `json:"first_name"`
+	LastName  string             `json:"last_name"`
 }
 
 type TokenPairs struct {
