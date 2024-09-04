@@ -1,6 +1,7 @@
 package main
 
 import (
+	"backend/internal/models"
 	"errors"
 	"net/http"
 
@@ -20,6 +21,57 @@ func (app *application) Home(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = app.writeJSON(w, http.StatusOK, payload)
+}
+
+func (app *application) registerUser(w http.ResponseWriter, r *http.Request) {
+	var user struct {
+		FirstName     string `json:"first_name"`
+		LastName      string `json:"last_name"`
+		Email         string `json:"email"`
+		Password      string `json:"password"`
+		Role          string `json:"role"`
+		Qualification string `json:"qualification"`
+	}
+
+	// validate user against database
+	existingUser, err := app.DB.GetUserByEmail(user.Email)
+	if err != nil || existingUser != nil {
+		app.errorJSON(w, errors.New("user already exists"), http.StatusBadRequest)
+		return
+	}
+
+	err = app.readJSON(w, r, &user)
+	if err != nil {
+		app.errorJSON(w, err, http.StatusBadRequest)
+		return
+	}
+
+	// hash password
+	// hashedPassword, err := hashPassword(user.Password)
+	// if err != nil {
+	// 	app.errorJSON(w, err, http.StatusInternalServerError)
+	// 	return
+	// }
+
+	// create a new user
+	u := &models.User{
+		FirstName:     user.FirstName,
+		LastName:      user.LastName,
+		Email:         user.Email,
+		Password:      user.Password,
+		Role:          user.Role,
+		Qualification: user.Qualification,
+	}
+
+	// save user to database
+	err = app.DB.RegisterUser(u)
+	if err != nil {
+		app.errorJSON(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	// return success
+	app.writeJSON(w, http.StatusCreated, u)
 }
 
 func (app *application) authenticate(w http.ResponseWriter, r *http.Request) {

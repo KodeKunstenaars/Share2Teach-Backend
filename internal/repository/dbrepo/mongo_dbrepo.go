@@ -80,3 +80,17 @@ func (m *MongoDBRepo) GetUserByID(id primitive.ObjectID) (*models.User, error) {
 
 	return &user, nil
 }
+
+func (m *MongoDBRepo) RegisterUser(user *models.User) error {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	collection := m.Client.Database(m.Database).Collection("user_info")
+
+	_, err := collection.InsertOne(ctx, user)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
