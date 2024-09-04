@@ -23,7 +23,7 @@ type Auth struct {
 }
 
 type jwtUser struct {
-	ID        primitive.ObjectID `json:"id"`
+	ID        primitive.ObjectID `json:"_id"`
 	FirstName string             `json:"first_name"`
 	LastName  string             `json:"last_name"`
 }
