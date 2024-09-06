@@ -24,7 +24,7 @@ func (app *application) Home(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) registerUser(w http.ResponseWriter, r *http.Request) {
-	var user struct {
+	var payload struct {
 		FirstName     string `json:"first_name"`
 		LastName      string `json:"last_name"`
 		Email         string `json:"email"`
@@ -33,45 +33,45 @@ func (app *application) registerUser(w http.ResponseWriter, r *http.Request) {
 		Qualification string `json:"qualification"`
 	}
 
-	// validate user against database
-	existingUser, err := app.DB.GetUserByEmail(user.Email)
+	// validate payload against database
+	existingUser, err := app.DB.GetUserByEmail(payload.Email)
 	if err != nil || existingUser != nil {
-		app.errorJSON(w, errors.New("user already exists"), http.StatusBadRequest)
+		app.errorJSON(w, errors.New("payload already exists"), http.StatusBadRequest)
 		return
 	}
 
-	err = app.readJSON(w, r, &user)
+	err = app.readJSON(w, r, &payload)
 	if err != nil {
 		app.errorJSON(w, err, http.StatusBadRequest)
 		return
 	}
 
 	// hash password
-	// hashedPassword, err := hashPassword(user.Password)
+	// hashedPassword, err := hashPassword(payload.Password)
 	// if err != nil {
 	// 	app.errorJSON(w, err, http.StatusInternalServerError)
 	// 	return
 	// }
 
-	// create a new user
-	u := &models.User{
-		FirstName:     user.FirstName,
-		LastName:      user.LastName,
-		Email:         user.Email,
-		Password:      user.Password,
-		Role:          user.Role,
-		Qualification: user.Qualification,
+	// create a new payload
+	newUser := &models.User{
+		FirstName:     payload.FirstName,
+		LastName:      payload.LastName,
+		Email:         payload.Email,
+		Password:      payload.Password,
+		Role:          payload.Role,
+		Qualification: payload.Qualification,
 	}
 
-	// save user to database
-	err = app.DB.RegisterUser(u)
+	// save payload to database
+	err = app.DB.RegisterUser(newUser)
 	if err != nil {
 		app.errorJSON(w, err, http.StatusInternalServerError)
 		return
 	}
 
 	// return success
-	app.writeJSON(w, http.StatusCreated, u)
+	app.writeJSON(w, http.StatusCreated, newUser)
 }
 
 func (app *application) authenticate(w http.ResponseWriter, r *http.Request) {
@@ -170,4 +170,47 @@ func (app *application) refreshToken(w http.ResponseWriter, r *http.Request) {
 func (app *application) logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, app.auth.GetRefreshCookie(""))
 	w.WriteHeader(http.StatusAccepted)
+}
+
+// ListBuckets lists the buckets in the current account.
+func (app *application) listBuckets(w http.ResponseWriter, r *http.Request) {
+	// Call the ListBuckets method on your app's Storage
+	result, err := app.Storage.ListBuckets()
+	if err != nil {
+		// Handle error and send a failure response
+		var payload = struct {
+			Status  string `json:"status"`
+			Message string `json:"message"`
+			Version string `json:"version"`
+		}{
+			Status:  "error",
+			Message: "Could not list buckets",
+			Version: "1.0.0",
+		}
+
+		_ = app.writeJSON(w, http.StatusInternalServerError, payload)
+		return
+	}
+
+	// Prepare the response payload for successful listing
+	var bucketNames []string
+	for _, bucket := range result {
+		bucketNames = append(bucketNames, *bucket.Name)
+	}
+
+	var payload = struct {
+		Status  string   `json:"status"`
+		Message []string `json:"message"`
+		Version string   `json:"version"`
+	}{
+		Status:  "active",
+		Message: bucketNames,
+		Version: "1.0.0",
+	}
+
+	// Write the JSON response
+	err = app.writeJSON(w, http.StatusOK, payload)
+	if err != nil {
+		http.Error(w, "Unable to send response", http.StatusInternalServerError)
+	}
 }

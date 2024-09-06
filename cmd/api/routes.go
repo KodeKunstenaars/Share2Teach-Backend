@@ -24,6 +24,8 @@ func (app *application) routes() http.Handler {
 
 	mux.Get("/logout", app.logout)
 
+	mux.Get("/buckets", app.listBuckets)
+
 	// mux.Get("/documents", app.Documents)
 
 	// mux.Route("/admin", func(mux chi.Router) {

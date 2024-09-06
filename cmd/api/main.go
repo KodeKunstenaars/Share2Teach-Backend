@@ -3,9 +3,12 @@ package main
 import (
 	"backend/internal/repository"
 	"backend/internal/repository/dbrepo"
+	"backend/internal/repository/storagerepo"
 	"context"
 	"flag"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"log"
 	"net/http"
 	"os"
@@ -20,6 +23,7 @@ type application struct {
 	DSN          string
 	Domain       string
 	DB           repository.DatabaseRepo
+	Storage      repository.StorageRepo
 	auth         Auth
 	JWTSecret    string
 	JWTIssuer    string
@@ -38,7 +42,7 @@ func main() {
 	}
 
 	mongoURI := os.Getenv("MONGODB_URI")
-	mongoDBName := os.Getenv("MONGO_DB_NAME")
+	awsRegion := os.Getenv("AWS_REGION")
 
 	// read from command line
 	flag.StringVar(&app.DSN, "dsn", mongoURI, "MongoDB connection string")
@@ -56,9 +60,9 @@ func main() {
 	}
 
 	app.DB = &dbrepo.MongoDBRepo{
-		Client:   conn,
-		Database: mongoDBName,
+		Client: conn,
 	}
+
 	defer func() {
 		if err := conn.Disconnect(context.TODO()); err != nil {
 			log.Printf("Error disconnecting from MongoDB: %v", err)
@@ -74,6 +78,18 @@ func main() {
 		CookiePath:    "/",
 		CookieName:    "__Host-refresh_token",
 		CookieDomain:  app.CookieDomain,
+	}
+
+	// initialize s3
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(awsRegion))
+	if err != nil {
+		log.Fatalf("unable to load AWS SDK config, %v", err)
+	}
+
+	s3Client := s3.NewFromConfig(cfg)
+
+	app.Storage = &storagerepo.BucketBasics{
+		S3Client: s3Client,
 	}
 
 	log.Println("Starting application on port", port)

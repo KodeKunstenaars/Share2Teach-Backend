@@ -17,40 +17,6 @@ type MongoDBRepo struct {
 
 const dbTimeout = time.Second * 3
 
-func (m *MongoDBRepo) Connection() *mongo.Client {
-	return m.Client
-}
-
-// func (m *MongoDBRepo) AllMovies() ([]*models.Movie, error) {
-// 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
-// 	defer cancel()
-
-// 	// get collection
-// 	collection := m.Client.Database(m.Database).Collection("movies")
-
-// 	cursor, err := collection.Find(ctx, bson.M{})
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer cursor.Close(ctx)
-
-// 	var movies []*models.Movie
-// 	for cursor.Next(ctx) {
-// 		var movie models.Movie
-// 		err := cursor.Decode(&movie)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		movies = append(movies, &movie)
-// 	}
-
-// 	if err := cursor.Err(); err != nil {
-// 		return nil, err
-// 	}
-
-// 	return movies, nil
-// }
-
 func (m *MongoDBRepo) GetUserByEmail(email string) (*models.User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
