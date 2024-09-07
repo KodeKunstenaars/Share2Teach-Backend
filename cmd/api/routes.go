@@ -24,15 +24,15 @@ func (app *application) routes() http.Handler {
 
 	mux.Get("/logout", app.logout)
 
-	mux.Get("/buckets", app.listBuckets)
+	mux.Route("/buckets", func(mux chi.Router) {
+		// Apply the authRequired middleware to require admin access
+		mux.Use(func(next http.Handler) http.Handler {
+			return app.authRequired(next, "admin")
+		})
 
-	// mux.Get("/documents", app.Documents)
-
-	// mux.Route("/admin", func(mux chi.Router) {
-	// 	mux.Use(app.authRequired)
-
-	// 	mux.Get("/documents", app.UploadDocument)
-	// })
+		// Route to list buckets (admin-only)
+		mux.Get("/", app.listBuckets)
+	})
 
 	return mux
 }

@@ -53,7 +53,7 @@ func (app *application) registerUser(w http.ResponseWriter, r *http.Request) {
 		LastName:      payload.LastName,
 		Email:         payload.Email,
 		Password:      hashedPassword,
-		Role:          payload.Role,
+		Role:          "educator",
 		Qualification: payload.Qualification,
 	}
 
@@ -99,6 +99,7 @@ func (app *application) authenticate(w http.ResponseWriter, r *http.Request) {
 		ID:        user.ID,
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
+		Role:      user.Role,
 	}
 
 	// generate tokens
