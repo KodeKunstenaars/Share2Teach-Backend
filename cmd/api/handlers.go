@@ -3,6 +3,7 @@ package main
 import (
 	"backend/internal/models"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/golang-jwt/jwt"
@@ -33,44 +34,36 @@ func (app *application) registerUser(w http.ResponseWriter, r *http.Request) {
 		Qualification string `json:"qualification"`
 	}
 
-	// validate payload against database
-	existingUser, err := app.DB.GetUserByEmail(payload.Email)
-	if err != nil || existingUser != nil {
-		app.errorJSON(w, errors.New("payload already exists"), http.StatusBadRequest)
-		return
-	}
-
-	err = app.readJSON(w, r, &payload)
+	err := app.readJSON(w, r, &payload)
 	if err != nil {
 		app.errorJSON(w, err, http.StatusBadRequest)
 		return
 	}
 
-	// hash password
-	// hashedPassword, err := hashPassword(payload.Password)
-	// if err != nil {
-	// 	app.errorJSON(w, err, http.StatusInternalServerError)
-	// 	return
-	// }
-
-	// create a new payload
-	newUser := &models.User{
-		FirstName:     payload.FirstName,
-		LastName:      payload.LastName,
-		Email:         payload.Email,
-		Password:      payload.Password,
-		Role:          payload.Role,
-		Qualification: payload.Qualification,
-	}
-
-	// save payload to database
-	err = app.DB.RegisterUser(newUser)
+	hashedPassword, err := models.HashPassword(payload.Password)
 	if err != nil {
+		log.Printf("Error hashing password: %v", err)
 		app.errorJSON(w, err, http.StatusInternalServerError)
 		return
 	}
 
-	// return success
+	newUser := &models.User{
+		ID:            primitive.NewObjectID(),
+		FirstName:     payload.FirstName,
+		LastName:      payload.LastName,
+		Email:         payload.Email,
+		Password:      hashedPassword,
+		Role:          payload.Role,
+		Qualification: payload.Qualification,
+	}
+
+	err = app.DB.RegisterUser(newUser)
+	if err != nil {
+		log.Printf("Error inserting user into MongoDB: %v", err)
+		app.errorJSON(w, err, http.StatusInternalServerError)
+		return
+	}
+
 	app.writeJSON(w, http.StatusCreated, newUser)
 }
 
@@ -172,20 +165,17 @@ func (app *application) logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-// ListBuckets lists the buckets in the current account.
+// question: wat doen ek met die result?
+// hoe fmt ek dit sodat die frontend dit kan gebruik/display?
 func (app *application) listBuckets(w http.ResponseWriter, r *http.Request) {
-	// Call the ListBuckets method on your app's Storage
 	result, err := app.Storage.ListBuckets()
 	if err != nil {
-		// Handle error and send a failure response
 		var payload = struct {
 			Status  string `json:"status"`
 			Message string `json:"message"`
-			Version string `json:"version"`
 		}{
 			Status:  "error",
 			Message: "Could not list buckets",
-			Version: "1.0.0",
 		}
 
 		_ = app.writeJSON(w, http.StatusInternalServerError, payload)
@@ -201,14 +191,11 @@ func (app *application) listBuckets(w http.ResponseWriter, r *http.Request) {
 	var payload = struct {
 		Status  string   `json:"status"`
 		Message []string `json:"message"`
-		Version string   `json:"version"`
 	}{
 		Status:  "active",
 		Message: bucketNames,
-		Version: "1.0.0",
 	}
 
-	// Write the JSON response
 	err = app.writeJSON(w, http.StatusOK, payload)
 	if err != nil {
 		http.Error(w, "Unable to send response", http.StatusInternalServerError)

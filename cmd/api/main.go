@@ -60,7 +60,8 @@ func main() {
 	}
 
 	app.DB = &dbrepo.MongoDBRepo{
-		Client: conn,
+		Client:   conn,
+		Database: "Share2Teach",
 	}
 
 	defer func() {
