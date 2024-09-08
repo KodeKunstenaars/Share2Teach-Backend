@@ -36,14 +36,20 @@ func (app *application) registerUser(w http.ResponseWriter, r *http.Request) {
 
 	err := app.readJSON(w, r, &payload)
 	if err != nil {
-		app.errorJSON(w, err, http.StatusBadRequest)
+		err := app.errorJSON(w, err, http.StatusBadRequest)
+		if err != nil {
+			return
+		}
 		return
 	}
 
 	hashedPassword, err := models.HashPassword(payload.Password)
 	if err != nil {
 		log.Printf("Error hashing password: %v", err)
-		app.errorJSON(w, err, http.StatusInternalServerError)
+		err := app.errorJSON(w, err, http.StatusInternalServerError)
+		if err != nil {
+			return
+		}
 		return
 	}
 
@@ -53,18 +59,24 @@ func (app *application) registerUser(w http.ResponseWriter, r *http.Request) {
 		LastName:      payload.LastName,
 		Email:         payload.Email,
 		Password:      hashedPassword,
-		Role:          "educator",
+		Role:          payload.Role, //"educator",
 		Qualification: payload.Qualification,
 	}
 
 	err = app.DB.RegisterUser(newUser)
 	if err != nil {
 		log.Printf("Error inserting user into MongoDB: %v", err)
-		app.errorJSON(w, err, http.StatusInternalServerError)
+		err := app.errorJSON(w, err, http.StatusInternalServerError)
+		if err != nil {
+			return
+		}
 		return
 	}
 
-	app.writeJSON(w, http.StatusCreated, newUser)
+	err = app.writeJSON(w, http.StatusCreated, newUser)
+	if err != nil {
+		return
+	}
 }
 
 func (app *application) authenticate(w http.ResponseWriter, r *http.Request) {
@@ -76,21 +88,30 @@ func (app *application) authenticate(w http.ResponseWriter, r *http.Request) {
 
 	err := app.readJSON(w, r, &requestPayload)
 	if err != nil {
-		app.errorJSON(w, err, http.StatusBadRequest)
+		err := app.errorJSON(w, err, http.StatusBadRequest)
+		if err != nil {
+			return
+		}
 		return
 	}
 
 	// validate user against database
 	user, err := app.DB.GetUserByEmail(requestPayload.Email)
 	if err != nil {
-		app.errorJSON(w, errors.New("invalid credentials"), http.StatusBadRequest)
+		err := app.errorJSON(w, errors.New("invalid credentials"), http.StatusBadRequest)
+		if err != nil {
+			return
+		}
 		return
 	}
 
 	// check password
 	valid, err := user.PasswordMatches(requestPayload.Password)
 	if err != nil || !valid {
-		app.errorJSON(w, errors.New("invalid credentials"), http.StatusBadRequest)
+		err := app.errorJSON(w, errors.New("invalid credentials"), http.StatusBadRequest)
+		if err != nil {
+			return
+		}
 		return
 	}
 
@@ -105,14 +126,20 @@ func (app *application) authenticate(w http.ResponseWriter, r *http.Request) {
 	// generate tokens
 	tokens, err := app.auth.GenerateTokenPair(&u)
 	if err != nil {
-		app.errorJSON(w, err)
+		err := app.errorJSON(w, err)
+		if err != nil {
+			return
+		}
 		return
 	}
 
 	refreshCookie := app.auth.GetRefreshCookie(tokens.RefreshToken)
 	http.SetCookie(w, refreshCookie)
 
-	app.writeJSON(w, http.StatusAccepted, tokens)
+	err = app.writeJSON(w, http.StatusAccepted, tokens)
+	if err != nil {
+		return
+	}
 }
 
 func (app *application) refreshToken(w http.ResponseWriter, r *http.Request) {
@@ -126,20 +153,29 @@ func (app *application) refreshToken(w http.ResponseWriter, r *http.Request) {
 				return []byte(app.JWTSecret), nil
 			})
 			if err != nil {
-				app.errorJSON(w, errors.New("unauthorized"), http.StatusUnauthorized)
+				err := app.errorJSON(w, errors.New("unauthorized"), http.StatusUnauthorized)
+				if err != nil {
+					return
+				}
 				return
 			}
 
 			// Convert the Subject (userID) to primitive.ObjectID
 			userID, err := primitive.ObjectIDFromHex(claims.Subject)
 			if err != nil {
-				app.errorJSON(w, errors.New("unknown user"), http.StatusUnauthorized)
+				err := app.errorJSON(w, errors.New("unknown user"), http.StatusUnauthorized)
+				if err != nil {
+					return
+				}
 				return
 			}
 
 			user, err := app.DB.GetUserByID(userID)
 			if err != nil {
-				app.errorJSON(w, errors.New("unknown user"), http.StatusUnauthorized)
+				err := app.errorJSON(w, errors.New("unknown user"), http.StatusUnauthorized)
+				if err != nil {
+					return
+				}
 				return
 			}
 
@@ -151,12 +187,18 @@ func (app *application) refreshToken(w http.ResponseWriter, r *http.Request) {
 
 			tokenPairs, err := app.auth.GenerateTokenPair(&u)
 			if err != nil {
-				app.errorJSON(w, errors.New("error generating token"), http.StatusUnauthorized)
+				err := app.errorJSON(w, errors.New("error generating token"), http.StatusUnauthorized)
+				if err != nil {
+					return
+				}
 				return
 			}
 
 			http.SetCookie(w, app.auth.GetRefreshCookie(tokenPairs.RefreshToken))
-			app.writeJSON(w, http.StatusOK, tokenPairs)
+			err = app.writeJSON(w, http.StatusOK, tokenPairs)
+			if err != nil {
+				return
+			}
 		}
 	}
 }
@@ -166,8 +208,6 @@ func (app *application) logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-// question: wat doen ek met die result?
-// hoe fmt ek dit sodat die frontend dit kan gebruik/display?
 func (app *application) listBuckets(w http.ResponseWriter, r *http.Request) {
 	result, err := app.Storage.ListBuckets()
 	if err != nil {
