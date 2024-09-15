@@ -309,13 +309,11 @@ func (app *application) uploadDocumentMetadata(w http.ResponseWriter, r *http.Re
 }
 
 func (app *application) generatePresignedURL(w http.ResponseWriter, r *http.Request) {
-	// Generate a unique S3 object key for the document (but do not store metadata yet)
 	documentID := primitive.NewObjectID()
 	objectKey := fmt.Sprintf("documents/%s", documentID.Hex()) // Object key for S3
 
 	// Generate the presigned URL for the client to upload the document
-	//presignedRequest, err := app.PutObject("your-s3-bucket-name", objectKey, 3600) // URL valid for 1 hour
-	presignedRequest, err := app.Storage.PutObject("share2teach", objectKey, 3600) // URL valid for 1 hour
+	presignedRequest, err := app.Storage.PutObject("share2teach", objectKey, 3600)
 	if err != nil {
 		app.errorJSON(w, fmt.Errorf("error generating presigned URL: %v", err), http.StatusInternalServerError)
 		return
@@ -327,7 +325,7 @@ func (app *application) generatePresignedURL(w http.ResponseWriter, r *http.Requ
 		PresignedURL string             `json:"presigned_url"`
 	}{
 		DocumentID:   documentID,
-		PresignedURL: presignedRequest.URL, // The presigned URL to upload the file
+		PresignedURL: presignedRequest.URL,
 	}
 
 	err = app.writeJSON(w, http.StatusOK, response)
