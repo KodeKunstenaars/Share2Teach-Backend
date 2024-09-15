@@ -34,5 +34,15 @@ func (app *application) routes() http.Handler {
 		mux.Get("/", app.listBuckets)
 	})
 
+	mux.Route("/upload-document", func(mux chi.Router) {
+		// Apply the authRequired middleware to require user access
+		mux.Use(func(next http.Handler) http.Handler {
+			return app.authRequired(next, "educator", "moderator", "admin")
+		})
+
+		// Route to upload a document
+		mux.Post("/", app.uploadDocument)
+	})
+
 	return mux
 }

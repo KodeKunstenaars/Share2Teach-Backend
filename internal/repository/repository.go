@@ -11,6 +11,7 @@ type DatabaseRepo interface {
 	GetUserByEmail(email string) (*models.User, error)
 	GetUserByID(id primitive.ObjectID) (*models.User, error)
 	RegisterUser(user *models.User) error
+	UploadDocumentMetadata(document *models.Document) error
 }
 
 type StorageRepo interface {

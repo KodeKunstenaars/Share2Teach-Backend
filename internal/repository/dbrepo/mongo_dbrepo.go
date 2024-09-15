@@ -60,3 +60,17 @@ func (m *MongoDBRepo) RegisterUser(user *models.User) error {
 
 	return nil
 }
+
+func (m *MongoDBRepo) UploadDocumentMetadata(document *models.Document) error {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	collection := m.Client.Database(m.Database).Collection("documents")
+
+	_, err := collection.InsertOne(ctx, document)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

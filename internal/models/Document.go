@@ -1,13 +1,18 @@
 package models
 
-import "time"
+import (
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"time"
+)
 
 type Document struct {
-	ID        int       `json:"_id" bson:"_id"`
-	Title     string    `json:"title"`
-	DocHash   string    `json:"doc_hash"`
-	CreatedAt time.Time `json:"-"`
-	UpdatedAt time.Time `json:"-"`
-	UserID    int       `json:"user_id"`
-	Moderated bool      `json:"moderated"`
+	ID        primitive.ObjectID `json:"_id" bson:"_id"`
+	Title     string             `json:"title"`
+	DocHash   string             `json:"doc_hash"`
+	CreatedAt time.Time          `json:"-"`
+	UserID    primitive.ObjectID `json:"user_id"`
+	Moderated bool               `json:"moderated"`
+	Subject   string             `json:"subject"`
+	Grade     string             `json:"grade"`
+	AWSKey    string             `json:"aws_key"`
 }

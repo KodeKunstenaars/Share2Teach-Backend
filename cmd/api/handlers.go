@@ -3,11 +3,12 @@ package main
 import (
 	"backend/internal/models"
 	"errors"
-	"log"
-	"net/http"
-
+	"fmt"
 	"github.com/golang-jwt/jwt"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"log"
+	"net/http"
+	"time"
 )
 
 func (app *application) Home(w http.ResponseWriter, r *http.Request) {
@@ -183,6 +184,7 @@ func (app *application) refreshToken(w http.ResponseWriter, r *http.Request) {
 				ID:        user.ID,
 				FirstName: user.FirstName,
 				LastName:  user.LastName,
+				Role:      user.Role,
 			}
 
 			tokenPairs, err := app.auth.GenerateTokenPair(&u)
@@ -240,5 +242,67 @@ func (app *application) listBuckets(w http.ResponseWriter, r *http.Request) {
 	err = app.writeJSON(w, http.StatusOK, payload)
 	if err != nil {
 		http.Error(w, "Unable to send response", http.StatusInternalServerError)
+	}
+}
+
+func (app *application) uploadDocument(w http.ResponseWriter, r *http.Request) {
+	// Get the user ID from the token
+	userIDStr, err := app.auth.GetUserIDFromHeader(w, r)
+	if err != nil {
+		err := app.errorJSON(w, fmt.Errorf("error extracting user ID from token: %v", err), http.StatusUnauthorized)
+		if err != nil {
+			return
+		}
+		return
+	}
+
+	// Convert the UserID string to MongoDB ObjectID
+	userID, err := primitive.ObjectIDFromHex(userIDStr)
+	if err != nil {
+		err := app.errorJSON(w, fmt.Errorf("invalid UserID: %v", err), http.StatusBadRequest)
+		if err != nil {
+			return
+		}
+		return
+	}
+
+	var payload struct {
+		Title string `json:"title"`
+	}
+
+	err = app.readJSON(w, r, &payload)
+	if err != nil {
+		err := app.errorJSON(w, err, http.StatusBadRequest)
+		if err != nil {
+			return
+		}
+		return
+	}
+
+	newDocument := &models.Document{
+		ID:        primitive.NewObjectID(),
+		Title:     payload.Title,
+		DocHash:   "docHash",
+		CreatedAt: time.Now(),
+		UserID:    userID,
+		Moderated: false,
+		Subject:   "Subject",
+		Grade:     "Grade",
+		AWSKey:    "awsKey",
+	}
+
+	err = app.DB.UploadDocumentMetadata(newDocument)
+	if err != nil {
+		log.Printf("Error inserting document into MongoDB: %v", err)
+		err := app.errorJSON(w, err, http.StatusInternalServerError)
+		if err != nil {
+			return
+		}
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusCreated, newDocument)
+	if err != nil {
+		return
 	}
 }

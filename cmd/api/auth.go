@@ -46,7 +46,8 @@ func (j *Auth) GenerateTokenPair(user *jwtUser) (TokenPairs, error) {
 	// Set the claims
 	claims := token.Claims.(jwt.MapClaims)
 	claims["name"] = fmt.Sprintf("%s %s", user.FirstName, user.LastName)
-	claims["sub"] = fmt.Sprint(user.ID)
+	//claims["sub"] = fmt.Sprint(user.ID)
+	claims["sub"] = user.ID.Hex()
 	claims["aud"] = j.Audience
 	claims["iss"] = j.Issuer
 	claims["iat"] = time.Now().UTC().Unix()
@@ -165,4 +166,57 @@ func (j *Auth) GetTokenFromHeaderAndVerify(w http.ResponseWriter, r *http.Reques
 
 	// Return the parsed token and claims
 	return token, claims, nil
+}
+
+func (j *Auth) GetUserIDFromHeader(w http.ResponseWriter, r *http.Request) (string, error) {
+	w.Header().Add("Vary", "Authorization")
+
+	// Get the Authorization header
+	authHeader := r.Header.Get("Authorization")
+
+	// Sanity check for the Authorization header
+	if authHeader == "" {
+		return "", errors.New("no auth header")
+	}
+
+	// Split the header on spaces
+	headerParts := strings.Split(authHeader, " ")
+	if len(headerParts) != 2 {
+		return "", errors.New("invalid auth header")
+	}
+
+	// Check if we have a Bearer token
+	if headerParts[0] != "Bearer" {
+		return "", errors.New("invalid auth header")
+	}
+
+	// Extract the token string
+	tokenStr := headerParts[1]
+
+	// Declare empty claims
+	claims := &Claims{}
+
+	// Parse the token and extract claims
+	_, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(j.Secret), nil
+	})
+
+	// Handle token parsing errors
+	if err != nil {
+		if strings.HasPrefix(err.Error(), "token is expired by") {
+			return "", errors.New("token is expired")
+		}
+		return "", err
+	}
+
+	// Verify the issuer
+	if claims.Issuer != j.Issuer {
+		return "", errors.New("invalid token issuer")
+	}
+
+	// Return the UserID (subclaim)
+	return claims.Subject, nil
 }
