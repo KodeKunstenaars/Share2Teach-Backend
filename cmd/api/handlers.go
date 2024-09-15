@@ -245,7 +245,7 @@ func (app *application) listBuckets(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (app *application) uploadDocument(w http.ResponseWriter, r *http.Request) {
+func (app *application) uploadDocumentMetadata(w http.ResponseWriter, r *http.Request) {
 	// Get the user ID from the token
 	userIDStr, err := app.auth.GetUserIDFromHeader(w, r)
 	if err != nil {
@@ -267,7 +267,10 @@ func (app *application) uploadDocument(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload struct {
-		Title string `json:"title"`
+		DocumentID primitive.ObjectID `json:"document_id"`
+		Title      string             `json:"title"`
+		Subject    string             `json:"subject"`
+		Grade      string             `json:"grade"`
 	}
 
 	err = app.readJSON(w, r, &payload)
@@ -280,15 +283,13 @@ func (app *application) uploadDocument(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newDocument := &models.Document{
-		ID:        primitive.NewObjectID(),
+		ID:        payload.DocumentID,
 		Title:     payload.Title,
-		DocHash:   "docHash",
 		CreatedAt: time.Now(),
 		UserID:    userID,
 		Moderated: false,
-		Subject:   "Subject",
-		Grade:     "Grade",
-		AWSKey:    "awsKey",
+		Subject:   payload.Subject,
+		Grade:     payload.Grade,
 	}
 
 	err = app.DB.UploadDocumentMetadata(newDocument)
@@ -302,6 +303,34 @@ func (app *application) uploadDocument(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = app.writeJSON(w, http.StatusCreated, newDocument)
+	if err != nil {
+		return
+	}
+}
+
+func (app *application) generatePresignedURL(w http.ResponseWriter, r *http.Request) {
+	// Generate a unique S3 object key for the document (but do not store metadata yet)
+	documentID := primitive.NewObjectID()
+	objectKey := fmt.Sprintf("documents/%s", documentID.Hex()) // Object key for S3
+
+	// Generate the presigned URL for the client to upload the document
+	//presignedRequest, err := app.PutObject("your-s3-bucket-name", objectKey, 3600) // URL valid for 1 hour
+	presignedRequest, err := app.Storage.PutObject("share2teach", objectKey, 3600) // URL valid for 1 hour
+	if err != nil {
+		app.errorJSON(w, fmt.Errorf("error generating presigned URL: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Return the presigned URL to the client along with the document ID
+	response := struct {
+		DocumentID   primitive.ObjectID `json:"document_id"`
+		PresignedURL string             `json:"presigned_url"`
+	}{
+		DocumentID:   documentID,
+		PresignedURL: presignedRequest.URL, // The presigned URL to upload the file
+	}
+
+	err = app.writeJSON(w, http.StatusOK, response)
 	if err != nil {
 		return
 	}

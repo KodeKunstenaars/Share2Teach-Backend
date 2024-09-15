@@ -9,15 +9,11 @@ import (
 	"time"
 )
 
-type Presigner struct {
-	PresignClient *s3.PresignClient
-}
-
 // GetObject makes a presigned request that can be used to get an object from a bucket.
 // The presigned request is valid for the specified number of seconds.
-func (presigner Presigner) GetObject(
+func (s StorageRepo) GetObject(
 	bucketName string, objectKey string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error) {
-	request, err := presigner.PresignClient.PresignGetObject(context.TODO(), &s3.GetObjectInput{
+	request, err := s.PresignClient.PresignGetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(objectKey),
 	}, func(opts *s3.PresignOptions) {
@@ -32,9 +28,9 @@ func (presigner Presigner) GetObject(
 
 // PutObject makes a presigned request that can be used to put an object in a bucket.
 // The presigned request is valid for the specified number of seconds.
-func (presigner Presigner) PutObject(
+func (s StorageRepo) PutObject(
 	bucketName string, objectKey string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error) {
-	request, err := presigner.PresignClient.PresignPutObject(context.TODO(), &s3.PutObjectInput{
+	request, err := s.PresignClient.PresignPutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(objectKey),
 	}, func(opts *s3.PresignOptions) {
@@ -48,8 +44,8 @@ func (presigner Presigner) PutObject(
 }
 
 // DeleteObject makes a presigned request that can be used to delete an object from a bucket.
-func (presigner Presigner) DeleteObject(bucketName string, objectKey string) (*v4.PresignedHTTPRequest, error) {
-	request, err := presigner.PresignClient.PresignDeleteObject(context.TODO(), &s3.DeleteObjectInput{
+func (s StorageRepo) DeleteObject(bucketName string, objectKey string) (*v4.PresignedHTTPRequest, error) {
+	request, err := s.PresignClient.PresignDeleteObject(context.TODO(), &s3.DeleteObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(objectKey),
 	})

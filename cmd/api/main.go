@@ -88,9 +88,12 @@ func main() {
 	}
 
 	s3Client := s3.NewFromConfig(cfg)
+	presignClient := s3.NewPresignClient(s3Client)
 
-	app.Storage = &storagerepo.BucketBasics{
-		S3Client: s3Client,
+	// Assign both clients to your storage repository struct
+	app.Storage = &storagerepo.StorageRepo{
+		S3Client:      s3Client,
+		PresignClient: presignClient,
 	}
 
 	log.Println("Starting application on port", port)

@@ -40,8 +40,11 @@ func (app *application) routes() http.Handler {
 			return app.authRequired(next, "educator", "moderator", "admin")
 		})
 
-		// Route to upload a document
-		mux.Post("/", app.uploadDocument)
+		// Step 1: Route to generate a presigned URL for document upload
+		mux.Post("/presigned-url", app.generatePresignedURL)
+
+		// Step 2: Route to confirm document upload and store metadata
+		mux.Post("/confirm", app.uploadDocumentMetadata)
 	})
 
 	return mux

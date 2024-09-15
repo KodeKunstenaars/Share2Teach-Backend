@@ -2,6 +2,7 @@ package repository
 
 import (
 	"backend/internal/models"
+	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -18,4 +19,5 @@ type StorageRepo interface {
 	ListBuckets() ([]types.Bucket, error)
 	BucketExists(bucketName string) (bool, error)
 	CreateBucket(name string, region string) error
+	PutObject(bucketName string, objectKey string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error)
 }

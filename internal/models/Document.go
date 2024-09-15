@@ -8,11 +8,9 @@ import (
 type Document struct {
 	ID        primitive.ObjectID `json:"_id" bson:"_id"`
 	Title     string             `json:"title"`
-	DocHash   string             `json:"doc_hash"`
 	CreatedAt time.Time          `json:"-"`
 	UserID    primitive.ObjectID `json:"user_id"`
 	Moderated bool               `json:"moderated"`
 	Subject   string             `json:"subject"`
 	Grade     string             `json:"grade"`
-	AWSKey    string             `json:"aws_key"`
 }

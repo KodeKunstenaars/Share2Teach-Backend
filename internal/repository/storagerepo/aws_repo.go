@@ -14,13 +14,9 @@ import (
 	"github.com/aws/smithy-go"
 )
 
-type BucketBasics struct {
-	S3Client *s3.Client
-}
-
 // ListBuckets lists the buckets in the current account.
-func (b *BucketBasics) ListBuckets() ([]types.Bucket, error) {
-	result, err := b.S3Client.ListBuckets(context.TODO(), &s3.ListBucketsInput{})
+func (s *StorageRepo) ListBuckets() ([]types.Bucket, error) {
+	result, err := s.S3Client.ListBuckets(context.TODO(), &s3.ListBucketsInput{})
 	var buckets []types.Bucket
 	if err != nil {
 		log.Printf("Couldn't list buckets for your account. Here's why: %v\n", err)
@@ -31,8 +27,8 @@ func (b *BucketBasics) ListBuckets() ([]types.Bucket, error) {
 }
 
 // BucketExists checks whether a bucket exists in the current account.
-func (b *BucketBasics) BucketExists(bucketName string) (bool, error) {
-	_, err := b.S3Client.HeadBucket(context.TODO(), &s3.HeadBucketInput{
+func (s *StorageRepo) BucketExists(bucketName string) (bool, error) {
+	_, err := s.S3Client.HeadBucket(context.TODO(), &s3.HeadBucketInput{
 		Bucket: aws.String(bucketName),
 	})
 	exists := true
@@ -57,8 +53,8 @@ func (b *BucketBasics) BucketExists(bucketName string) (bool, error) {
 }
 
 // CreateBucket creates a bucket with the specified name in the specified Region.
-func (b *BucketBasics) CreateBucket(name string, region string) error {
-	_, err := b.S3Client.CreateBucket(context.TODO(), &s3.CreateBucketInput{
+func (s *StorageRepo) CreateBucket(name string, region string) error {
+	_, err := s.S3Client.CreateBucket(context.TODO(), &s3.CreateBucketInput{
 		Bucket: aws.String(name),
 		CreateBucketConfiguration: &types.CreateBucketConfiguration{
 			LocationConstraint: types.BucketLocationConstraint(region),
@@ -72,13 +68,13 @@ func (b *BucketBasics) CreateBucket(name string, region string) error {
 }
 
 // UploadFile reads from a file and puts the data into an object in a bucket.
-func (b *BucketBasics) UploadFile(bucketName string, objectKey string, fileName string) error {
+func (s *StorageRepo) UploadFile(bucketName string, objectKey string, fileName string) error {
 	file, err := os.Open(fileName)
 	if err != nil {
 		log.Printf("Couldn't open file %v to upload. Here's why: %v\n", fileName, err)
 	} else {
 		defer file.Close()
-		_, err = b.S3Client.PutObject(context.TODO(), &s3.PutObjectInput{
+		_, err = s.S3Client.PutObject(context.TODO(), &s3.PutObjectInput{
 			Bucket: aws.String(bucketName),
 			Key:    aws.String(objectKey),
 			Body:   file,
@@ -92,8 +88,8 @@ func (b *BucketBasics) UploadFile(bucketName string, objectKey string, fileName 
 }
 
 // DownloadFile gets an object from a bucket and stores it in a local file.
-func (b *BucketBasics) DownloadFile(bucketName string, objectKey string, fileName string) error {
-	result, err := b.S3Client.GetObject(context.TODO(), &s3.GetObjectInput{
+func (s *StorageRepo) DownloadFile(bucketName string, objectKey string, fileName string) error {
+	result, err := s.S3Client.GetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(objectKey),
 	})
@@ -117,8 +113,8 @@ func (b *BucketBasics) DownloadFile(bucketName string, objectKey string, fileNam
 }
 
 // CopyToBucket copies an object in a bucket to another bucket.
-func (b *BucketBasics) CopyToBucket(sourceBucket string, destinationBucket string, objectKey string) error {
-	_, err := b.S3Client.CopyObject(context.TODO(), &s3.CopyObjectInput{
+func (s *StorageRepo) CopyToBucket(sourceBucket string, destinationBucket string, objectKey string) error {
+	_, err := s.S3Client.CopyObject(context.TODO(), &s3.CopyObjectInput{
 		Bucket:     aws.String(destinationBucket),
 		CopySource: aws.String(fmt.Sprintf("%v/%v", sourceBucket, objectKey)),
 		Key:        aws.String(objectKey),
@@ -131,8 +127,8 @@ func (b *BucketBasics) CopyToBucket(sourceBucket string, destinationBucket strin
 }
 
 // ListObjects lists the objects in a bucket.
-func (b *BucketBasics) ListObjects(bucketName string) ([]types.Object, error) {
-	result, err := b.S3Client.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{
+func (s *StorageRepo) ListObjects(bucketName string) ([]types.Object, error) {
+	result, err := s.S3Client.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{
 		Bucket: aws.String(bucketName),
 	})
 	var contents []types.Object
@@ -145,12 +141,12 @@ func (b *BucketBasics) ListObjects(bucketName string) ([]types.Object, error) {
 }
 
 // DeleteObjects deletes a list of objects from a bucket.
-func (b *BucketBasics) DeleteObjects(bucketName string, objectKeys []string) error {
+func (s *StorageRepo) DeleteObjects(bucketName string, objectKeys []string) error {
 	var objectIds []types.ObjectIdentifier
 	for _, key := range objectKeys {
 		objectIds = append(objectIds, types.ObjectIdentifier{Key: aws.String(key)})
 	}
-	output, err := b.S3Client.DeleteObjects(context.TODO(), &s3.DeleteObjectsInput{
+	output, err := s.S3Client.DeleteObjects(context.TODO(), &s3.DeleteObjectsInput{
 		Bucket: aws.String(bucketName),
 		Delete: &types.Delete{Objects: objectIds},
 	})
