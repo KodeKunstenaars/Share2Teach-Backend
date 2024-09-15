@@ -19,30 +19,6 @@ func (app *application) enableCORS(h http.Handler) http.Handler {
 	})
 }
 
-//func (app *application) authRequired(next http.Handler, requiredRole string) http.Handler {
-//	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-//		token, claims, err := app.auth.GetTokenFromHeaderAndVerify(w, r)
-//		if err != nil {
-//			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-//			return
-//		}
-//
-//		if !token.Valid {
-//			http.Error(w, "Invalid token", http.StatusUnauthorized)
-//			return
-//		}
-//
-//		userRole := claims.Role
-//
-//		if requiredRole != "" && userRole != requiredRole {
-//			http.Error(w, "Forbidden - insufficient permissions", http.StatusForbidden)
-//			return
-//		}
-//
-//		next.ServeHTTP(w, r)
-//	})
-//}
-
 func (app *application) authRequired(next http.Handler, allowedRoles ...string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// extract token and claims
