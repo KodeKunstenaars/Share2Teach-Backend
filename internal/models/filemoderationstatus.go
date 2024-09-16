@@ -6,4 +6,5 @@ type FileModerationStatus struct {
 	Filename       string `bson:"filename"`
 	FilePath       string `bson:"filepath"`
 	ApprovalStatus string `bson:"approvalstatus"`
+	Comments       string `bson:"comments"`
 }
