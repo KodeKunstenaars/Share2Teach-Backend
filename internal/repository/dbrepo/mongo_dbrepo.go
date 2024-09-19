@@ -112,4 +112,33 @@ func (m *MongoDBRepo) FindDocumentsByTitle(title string) ([]models.Document, err
 	}
 
 	return documents, nil
+
+}
+
+func (m *MongoDBRepo) GetFAQs() ([]models.Faqs, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	collection := m.Client.Database(m.Database).Collection("faqs")
+
+	cursor, err := collection.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var faqs []models.Faqs
+	for cursor.Next(ctx) {
+		var faq models.Faqs
+		if err := cursor.Decode(&faq); err != nil {
+			return nil, err
+		}
+		faqs = append(faqs, faq)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	return faqs, nil
 }
