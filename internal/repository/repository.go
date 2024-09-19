@@ -2,6 +2,7 @@ package repository
 
 import (
 	"backend/internal/models"
+
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 
@@ -13,6 +14,7 @@ type DatabaseRepo interface {
 	GetUserByID(id primitive.ObjectID) (*models.User, error)
 	RegisterUser(user *models.User) error
 	UploadDocumentMetadata(document *models.Document) error
+	FindDocumentsByTitle(title string) ([]models.Document, error)
 }
 
 type StorageRepo interface {

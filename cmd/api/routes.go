@@ -47,5 +47,7 @@ func (app *application) routes() http.Handler {
 		mux.Post("/confirm", app.uploadDocumentMetadata)
 	})
 
+	mux.Get("/documents/search", app.searchDocumentsByTitle)
+
 	return mux
 }

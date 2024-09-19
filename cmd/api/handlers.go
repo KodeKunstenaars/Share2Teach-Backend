@@ -4,11 +4,12 @@ import (
 	"backend/internal/models"
 	"errors"
 	"fmt"
-	"github.com/golang-jwt/jwt"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/golang-jwt/jwt"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func (app *application) Home(w http.ResponseWriter, r *http.Request) {
@@ -330,6 +331,29 @@ func (app *application) generatePresignedURL(w http.ResponseWriter, r *http.Requ
 
 	err = app.writeJSON(w, http.StatusOK, response)
 	if err != nil {
+		return
+	}
+}
+
+func (app *application) searchDocumentsByTitle(w http.ResponseWriter, r *http.Request) {
+	title := r.URL.Query().Get("title")
+
+	// finds the documents that match the given title
+	documents, err := app.DB.FindDocumentsByTitle(title)
+	if err != nil {
+		app.errorJSON(w, fmt.Errorf("error finding documents: %v", err), http.StatusInternalServerError)
+		log.Println("error finding documents:", err)
+		return
+	}
+
+	if len(documents) == 0 {
+		app.errorJSON(w, fmt.Errorf("no documents found with this title"), http.StatusNotFound)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, documents)
+	if err != nil {
+		app.errorJSON(w, fmt.Errorf("error encoding response: %v", err), http.StatusInternalServerError)
 		return
 	}
 }
