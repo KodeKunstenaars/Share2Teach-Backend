@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/go-chi/chi/v5"
 
 	"github.com/golang-jwt/jwt"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -293,6 +294,7 @@ func (app *application) uploadDocumentMetadata(w http.ResponseWriter, r *http.Re
 		Moderated: false,
 		Subject:   payload.Subject,
 		Grade:     payload.Grade,
+		Reported:  false,
 	}
 
 	err = app.DB.UploadDocumentMetadata(newDocument)
