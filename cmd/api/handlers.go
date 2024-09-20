@@ -309,9 +309,9 @@ func (app *application) uploadDocumentMetadata(w http.ResponseWriter, r *http.Re
 	}
 }
 
-func (app *application) generatePresignedURL(w http.ResponseWriter, r *http.Request) {
+func (app *application) generatePresignedURLForUpload(w http.ResponseWriter, r *http.Request) {
 	documentID := primitive.NewObjectID()
-	objectKey := fmt.Sprintf("documents/%s", documentID.Hex()) // Object key for S3
+	objectKey := fmt.Sprintf( /*"documents/%s",*/ documentID.Hex()) // Object key for S3
 
 	// Generate the presigned URL for the client to upload the document
 	presignedRequest, err := app.Storage.PutObject("share2teach", objectKey, 3600)
@@ -356,6 +356,32 @@ func (app *application) searchDocuments(w http.ResponseWriter, r *http.Request) 
 	err = app.writeJSON(w, http.StatusOK, documents)
 	if err != nil {
 		app.errorJSON(w, fmt.Errorf("error encoding response: %v", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (app *application) generatePresignedURLForDownload(w http.ResponseWriter, r *http.Request) {
+	documentID := primitive.NewObjectID()
+	objectKey := fmt.Sprintf( /*"documents/%s",*/ documentID.Hex()) // Object key for S3
+
+	// Generate the presigned URL for the client to upload the document
+	presignedRequest, err := app.Storage.GetObject("share2teach", objectKey, 3600)
+	if err != nil {
+		app.errorJSON(w, fmt.Errorf("error generating presigned URL: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Return the presigned URL to the client along with the document ID
+	response := struct {
+		DocumentID   primitive.ObjectID `json:"document_id"`
+		PresignedURL string             `json:"presigned_url"`
+	}{
+		DocumentID:   documentID,
+		PresignedURL: presignedRequest.URL,
+	}
+
+	err = app.writeJSON(w, http.StatusOK, response)
+	if err != nil {
 		return
 	}
 }
