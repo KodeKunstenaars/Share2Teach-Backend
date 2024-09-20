@@ -115,7 +115,7 @@ func (m *MongoDBRepo) FindDocumentsByTitle(title string) ([]models.Document, err
 
 }
 
-func (m *MongoDBRepo) GetFAQs() ([]models.Faqs, error) {
+func (m *MongoDBRepo) GetFAQs() ([]models.FAQs, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
@@ -127,9 +127,10 @@ func (m *MongoDBRepo) GetFAQs() ([]models.Faqs, error) {
 	}
 	defer cursor.Close(ctx)
 
-	var faqs []models.Faqs
+	var faqs []models.FAQs
+
 	for cursor.Next(ctx) {
-		var faq models.Faqs
+		var faq models.FAQs
 		if err := cursor.Decode(&faq); err != nil {
 			return nil, err
 		}

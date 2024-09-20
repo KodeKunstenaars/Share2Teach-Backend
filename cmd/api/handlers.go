@@ -2,6 +2,7 @@ package main
 
 import (
 	"backend/internal/models"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -356,4 +357,16 @@ func (app *application) searchDocumentsByTitle(w http.ResponseWriter, r *http.Re
 		app.errorJSON(w, fmt.Errorf("error encoding response: %v", err), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (app *application) FAQs(w http.ResponseWriter, r *http.Request) {
+
+	faqs, err := app.DB.GetFAQs()
+	if err != nil {
+		http.Error(w, "Failed to fetch FAQs", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(faqs)
 }

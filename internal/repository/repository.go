@@ -15,6 +15,7 @@ type DatabaseRepo interface {
 	RegisterUser(user *models.User) error
 	UploadDocumentMetadata(document *models.Document) error
 	FindDocumentsByTitle(title string) ([]models.Document, error)
+	GetFAQs() ([]models.FAQs, error)
 }
 
 type StorageRepo interface {

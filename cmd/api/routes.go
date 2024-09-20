@@ -49,5 +49,7 @@ func (app *application) routes() http.Handler {
 
 	mux.Get("/documents/search", app.searchDocumentsByTitle)
 
+	mux.Get("/faqs", app.FAQs)
+
 	return mux
 }
