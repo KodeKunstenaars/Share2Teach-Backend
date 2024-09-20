@@ -49,6 +49,8 @@ func (app *application) routes() http.Handler {
 
 	mux.Get("/documents/search", app.searchDocuments)
 
+	mux.Get("/download-document/{id}", app.generatePresignedURLForDownload)
+
 	mux.Get("/faqs", app.FAQs)
 
 	return mux

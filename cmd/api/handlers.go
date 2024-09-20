@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
 	"time"
@@ -357,6 +358,45 @@ func (app *application) searchDocuments(w http.ResponseWriter, r *http.Request) 
 	err = app.writeJSON(w, http.StatusOK, documents)
 	if err != nil {
 		app.errorJSON(w, fmt.Errorf("error encoding response: %v", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (app *application) generatePresignedURLForDownload(w http.ResponseWriter, r *http.Request) {
+	documentIDStr := chi.URLParam(r, "id")
+
+	// Ensure documentID is provided
+	if documentIDStr == "" {
+		app.errorJSON(w, fmt.Errorf("document ID is missing"), http.StatusBadRequest)
+		return
+	}
+
+	// Convert the documentID from string to primitive.ObjectID
+	documentID, err := primitive.ObjectIDFromHex(documentIDStr)
+	if err != nil {
+		app.errorJSON(w, fmt.Errorf("invalid document ID: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	objectKey := fmt.Sprintf(documentID.Hex())
+
+	// Generate the presigned URL for the S3 object using the document ID
+	presignedRequest, err := app.Storage.GetObject("share2teach", objectKey, 3600)
+	if err != nil {
+		app.errorJSON(w, fmt.Errorf("error generating presigned URL: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Return the presigned URL and document ID to the client
+	response := struct {
+		PresignedURL string `json:"presigned_url"`
+	}{
+		PresignedURL: presignedRequest.URL,
+	}
+
+	// Respond with the JSON data
+	err = app.writeJSON(w, http.StatusOK, response)
+	if err != nil {
 		return
 	}
 }

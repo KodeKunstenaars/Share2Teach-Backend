@@ -13,4 +13,5 @@ type Document struct {
 	Moderated bool               `json:"moderated"`
 	Subject   string             `json:"subject"`
 	Grade     string             `json:"grade"`
+	Reported  bool               `json:"reported"`
 }
