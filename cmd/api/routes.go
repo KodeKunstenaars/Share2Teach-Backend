@@ -41,13 +41,13 @@ func (app *application) routes() http.Handler {
 		})
 
 		// Step 1: Route to generate a presigned URL for document upload
-		mux.Get("/presigned-url", app.generatePresignedURL)
+		mux.Get("/presigned-url", app.generatePresignedURLForUpload)
 
 		// Step 2: Route to confirm document upload and store metadata
 		mux.Post("/confirm", app.uploadDocumentMetadata)
 	})
 
-	mux.Get("/documents/search", app.searchDocumentsByTitle)
+	mux.Get("/documents/search", app.searchDocuments)
 
 	mux.Get("/faqs", app.FAQs)
 

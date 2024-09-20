@@ -310,9 +310,9 @@ func (app *application) uploadDocumentMetadata(w http.ResponseWriter, r *http.Re
 	}
 }
 
-func (app *application) generatePresignedURL(w http.ResponseWriter, r *http.Request) {
+func (app *application) generatePresignedURLForUpload(w http.ResponseWriter, r *http.Request) {
 	documentID := primitive.NewObjectID()
-	objectKey := fmt.Sprintf("documents/%s", documentID.Hex()) // Object key for S3
+	objectKey := fmt.Sprintf( /*"documents/%s",*/ documentID.Hex()) // Object key for S3
 
 	// Generate the presigned URL for the client to upload the document
 	presignedRequest, err := app.Storage.PutObject("share2teach", objectKey, 3600)
@@ -336,11 +336,13 @@ func (app *application) generatePresignedURL(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-func (app *application) searchDocumentsByTitle(w http.ResponseWriter, r *http.Request) {
+func (app *application) searchDocuments(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Query().Get("title")
+	subject := r.URL.Query().Get("subject")
+	grade := r.URL.Query().Get("grade")
 
 	// finds the documents that match the given title
-	documents, err := app.DB.FindDocumentsByTitle(title)
+	documents, err := app.DB.FindDocuments(title, subject, grade)
 	if err != nil {
 		app.errorJSON(w, fmt.Errorf("error finding documents: %v", err), http.StatusInternalServerError)
 		log.Println("error finding documents:", err)

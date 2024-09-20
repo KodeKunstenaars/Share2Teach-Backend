@@ -23,4 +23,5 @@ type StorageRepo interface {
 	BucketExists(bucketName string) (bool, error)
 	CreateBucket(name string, region string) error
 	PutObject(bucketName string, objectKey string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error)
+	GetObject(bucketName string, objectKey string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error)
 }
