@@ -3,6 +3,7 @@ package dbrepo
 import (
 	"backend/internal/models"
 	"context"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -75,16 +76,36 @@ func (m *MongoDBRepo) UploadDocumentMetadata(document *models.Document) error {
 	return nil
 }
 
-func (m *MongoDBRepo) FindDocumentsByTitle(title string) ([]models.Document, error) {
+func (m *MongoDBRepo) FindDocuments(title, subject, grade string) ([]models.Document, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel() //ensures that the context is canceled after the funtion returns
 
 	collection := m.Client.Database(m.Database).Collection("metadata")
 
-	//creates a filter for the query that only searches for the given title
-	// search query for title that is case-insensitive
-	filter := bson.M{"title": bson.M{"$regex": primitive.Regex{Pattern: title, Options: "i"}}}
+	//creates a filter for the query that only searches for the given parameters
+	// search query for the parameters that is case-insensitive
+	filter := bson.M{}
+
+	if title != "" {
+		filter["title"] = bson.M{"$regex": primitive.Regex{Pattern: title, Options: "i"}}
+	}
+	if subject != "" {
+		filter["subject"] = bson.M{"$regex": primitive.Regex{Pattern: subject, Options: "i"}}
+	}
+	if grade != "" {
+
+		normalizedGrade := strings.ToLower(strings.TrimSpace(grade))
+		normalizedGrade = strings.ReplaceAll(normalizedGrade, " ", "")
+
+		normalizedGrade = strings.TrimPrefix(normalizedGrade, "grade")
+
+		filter["$or"] = []bson.M{
+			{"grade": normalizedGrade},
+			{"grade": bson.M{"$regex": primitive.Regex{Pattern: normalizedGrade, Options: "i"}}},
+		}
+
+	}
 
 	// cursor that loops through the DB to find the matching documents
 	cursor, err := collection.Find(ctx, filter)
