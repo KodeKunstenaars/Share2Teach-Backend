@@ -53,5 +53,7 @@ func (app *application) routes() http.Handler {
 
 	mux.Get("/faqs", app.FAQs)
 
+	mux.Post("/rate-document/{id}", app.rateDocument)
+
 	return mux
 }

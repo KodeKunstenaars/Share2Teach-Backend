@@ -76,6 +76,20 @@ func (m *MongoDBRepo) UploadDocumentMetadata(document *models.Document) error {
 	return nil
 }
 
+func (m *MongoDBRepo) CreateDocumentRating(initialRating *models.Rating) error {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	collection := m.Client.Database(m.Database).Collection("ratings")
+
+	_, err := collection.InsertOne(ctx, initialRating)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (m *MongoDBRepo) FindDocuments(title, subject, grade string) ([]models.Document, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
@@ -163,4 +177,47 @@ func (m *MongoDBRepo) GetFAQs() ([]models.FAQs, error) {
 	}
 
 	return faqs, nil
+}
+
+func (m *MongoDBRepo) GetDocumentByID(id primitive.ObjectID) (*models.Document, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	collection := m.Client.Database(m.Database).Collection("metadata")
+
+	var document models.Document
+	err := collection.FindOne(ctx, bson.M{"_id": id}).Decode(&document)
+	if err != nil {
+		return nil, err
+	}
+
+	return &document, nil
+}
+
+// SetDocumentRating inserts or updates the rating for a given document by its ID.
+func (m *MongoDBRepo) SetDocumentRating(docID primitive.ObjectID, rating *models.Rating) error {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	collectionForDocument := m.Client.Database(m.Database).Collection("metadata")
+	var document models.Document
+
+	err := collectionForDocument.FindOne(ctx, bson.M{"_id": docID}).Decode(&document)
+	if err != nil {
+		return err
+	}
+
+	collectionForRating := m.Client.Database(m.Database).Collection("ratings")
+	filter := bson.M{"_id": document.RatingID}
+	update := bson.M{
+		"$inc": bson.M{"times_rated": 1, "total_rating": rating.TotalRating},
+		"$set": bson.M{"average_rating": bson.M{"$divide": []interface{}{"$total_rating", "$times_rated"}}},
+	}
+
+	_, err = collectionForRating.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

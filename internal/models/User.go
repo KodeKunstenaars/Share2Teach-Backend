@@ -9,12 +9,12 @@ import (
 
 type User struct {
 	ID            primitive.ObjectID `json:"_id" bson:"_id"`
-	FirstName     string             `json:"first_name"`
-	LastName      string             `json:"last_name"`
-	Email         string             `json:"email"`
-	Password      string             `json:"password"`
-	Role          string             `json:"role"`
-	Qualification string             `json:"qualification"`
+	FirstName     string             `json:"first_name" bson:"first_name"`
+	LastName      string             `json:"last_name" bson:"last_name"`
+	Email         string             `json:"email" bson:"email"`
+	Password      string             `json:"password" bson:"password"`
+	Role          string             `json:"role" bson:"role"`
+	Qualification string             `json:"qualification" bson:"qualification"`
 }
 
 func (u *User) PasswordMatches(plainText string) (bool, error) {
