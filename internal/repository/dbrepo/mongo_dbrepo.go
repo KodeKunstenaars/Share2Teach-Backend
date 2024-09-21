@@ -164,3 +164,20 @@ func (m *MongoDBRepo) GetFAQs() ([]models.FAQs, error) {
 
 	return faqs, nil
 }
+
+func (m *MongoDBRepo) UpdateDocumentsByID(documentID primitive.ObjectID, updateData bson.M) error {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	collection := m.Client.Database(m.Database).Collection("metadata")
+
+	filter := bson.M{"_id": documentID}
+	update := bson.M{"$set": updateData} // This is correct
+
+	_, err := collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

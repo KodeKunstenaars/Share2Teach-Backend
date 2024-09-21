@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/golang-jwt/jwt"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -411,4 +413,81 @@ func (app *application) FAQs(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(faqs)
+}
+
+func (app *application) moderateDocument(w http.ResponseWriter, r *http.Request) {
+	// Extract the document ID from the URL
+	documentIDStr := chi.URLParam(r, "id")
+
+	// Convert the document ID to MongoDB ObjectID
+	documentID, err := primitive.ObjectIDFromHex(documentIDStr)
+	if err != nil {
+		err = app.errorJSON(w, errors.New("invalid document ID"), http.StatusBadRequest)
+		if err != nil {
+			return
+		}
+		return
+	}
+
+	// Read JSON payload from the request body
+	var payload struct {
+		ApprovalStatus string `json:"approvalStatus"`
+		Comments       string `json:"comments"`
+	}
+
+	err = app.readJSON(w, r, &payload)
+	if err != nil {
+		err = app.errorJSON(w, err, http.StatusBadRequest)
+		if err != nil {
+			return
+		}
+		return
+	}
+
+	// Get the user ID from the token (assuming you want to log the moderator's ID)
+	userIDStr, err := app.auth.GetUserIDFromHeader(w, r)
+	if err != nil {
+		err = app.errorJSON(w, fmt.Errorf("error extracting user ID from token: %v", err), http.StatusUnauthorized)
+		if err != nil {
+			return
+		}
+		return
+	}
+
+	// Convert the UserID string to MongoDB ObjectID
+	userID, err := primitive.ObjectIDFromHex(userIDStr)
+	if err != nil {
+		err = app.errorJSON(w, fmt.Errorf("invalid UserID: %v", err), http.StatusBadRequest)
+		if err != nil {
+			return
+		}
+		return
+	}
+
+	// Update the document in MongoDB with moderation status and comments
+	update := bson.M{
+		"moderated":      true,
+		"approvalStatus": payload.ApprovalStatus,
+		"comments":       payload.Comments,
+		"moderatedBy":    userID,
+		"moderatedAt":    time.Now(),
+	}
+
+	// Update the document based on its ID
+	err = app.DB.UpdateDocumentsByID(documentID, update)
+	if err != nil {
+		log.Printf("Update error: %v", err) // Log the error
+		err = app.errorJSON(w, errors.New("could not complete action"), http.StatusInternalServerError)
+		if err != nil {
+			return
+		}
+		return
+	}
+
+	// Respond with success message
+	w.WriteHeader(http.StatusOK)
+	err = app.writeJSON(w, http.StatusOK, map[string]string{"message": "Action complete"})
+	if err != nil {
+		return
+	}
 }

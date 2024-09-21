@@ -6,6 +6,7 @@ import (
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -16,6 +17,7 @@ type DatabaseRepo interface {
 	UploadDocumentMetadata(document *models.Document) error
 	FindDocuments(title, subject, grade string) ([]models.Document, error)
 	GetFAQs() ([]models.FAQs, error)
+	UpdateDocumentsByID(documentID primitive.ObjectID, updateData bson.M) error
 }
 
 type StorageRepo interface {
