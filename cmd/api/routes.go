@@ -51,7 +51,7 @@ func (app *application) routes() http.Handler {
 
 	mux.Get("/search", app.searchDocuments)
 
-	mux.Route("/admin-search", func(mux chi.Router) {
+	mux.Route("/admin/search", func(mux chi.Router) {
 
 		mux.Use(func(next http.Handler) http.Handler {
 			return app.authRequired(next, "admin", "moderator")

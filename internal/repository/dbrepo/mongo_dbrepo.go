@@ -3,7 +3,6 @@ package dbrepo
 import (
 	"backend/internal/models"
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -136,8 +135,6 @@ func (m *MongoDBRepo) FindDocuments(title, subject, grade string, correctRole bo
 
 		return nil, err
 	}
-
-	fmt.Printf("Found %d documents\n", len(documents)) //debugging
 
 	return documents, nil
 
