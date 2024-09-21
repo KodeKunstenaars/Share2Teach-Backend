@@ -18,6 +18,7 @@ type DatabaseRepo interface {
 	FindDocuments(title, subject, grade string) ([]models.Document, error)
 	GetFAQs() ([]models.FAQs, error)
 	UpdateDocumentsByID(documentID primitive.ObjectID, updateData bson.M) error
+	InsertModerationData(userID, documentID primitive.ObjectID, approvalStatus, comments string) error
 }
 
 type StorageRepo interface {

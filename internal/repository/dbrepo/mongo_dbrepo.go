@@ -3,6 +3,7 @@ package dbrepo
 import (
 	"backend/internal/models"
 	"context"
+	"log"
 	"strings"
 	"time"
 
@@ -172,9 +173,33 @@ func (m *MongoDBRepo) UpdateDocumentsByID(documentID primitive.ObjectID, updateD
 	collection := m.Client.Database(m.Database).Collection("metadata")
 
 	filter := bson.M{"_id": documentID}
-	update := bson.M{"$set": updateData} // This is correct
+	// No need for another $set here
+	update := updateData
 
 	_, err := collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		log.Printf("Error updating document with ID %s: %v", documentID.Hex(), err)
+		return err
+	}
+
+	return nil
+}
+
+func (m *MongoDBRepo) InsertModerationData(userID, documentID primitive.ObjectID, approvalStatus, comments string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	collection := m.Client.Database(m.Database).Collection("moderate")
+
+	moderationData := bson.M{
+		"moderatedBy":    userID,
+		"documentID":     documentID,
+		"approvalStatus": approvalStatus,
+		"comments":       comments,
+		"moderatedAt":    time.Now(),
+	}
+
+	_, err := collection.InsertOne(ctx, moderationData)
 	if err != nil {
 		return err
 	}

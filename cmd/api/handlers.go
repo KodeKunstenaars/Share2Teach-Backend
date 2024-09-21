@@ -422,10 +422,7 @@ func (app *application) moderateDocument(w http.ResponseWriter, r *http.Request)
 	// Convert the document ID to MongoDB ObjectID
 	documentID, err := primitive.ObjectIDFromHex(documentIDStr)
 	if err != nil {
-		err = app.errorJSON(w, errors.New("invalid document ID"), http.StatusBadRequest)
-		if err != nil {
-			return
-		}
+		app.errorJSON(w, errors.New("invalid document ID"), http.StatusBadRequest)
 		return
 	}
 
@@ -437,56 +434,57 @@ func (app *application) moderateDocument(w http.ResponseWriter, r *http.Request)
 
 	err = app.readJSON(w, r, &payload)
 	if err != nil {
-		err = app.errorJSON(w, err, http.StatusBadRequest)
-		if err != nil {
-			return
-		}
+		app.errorJSON(w, err, http.StatusBadRequest)
 		return
 	}
 
-	// Get the user ID from the token (assuming you want to log the moderator's ID)
+	// Get the user ID from the token
 	userIDStr, err := app.auth.GetUserIDFromHeader(w, r)
 	if err != nil {
-		err = app.errorJSON(w, fmt.Errorf("error extracting user ID from token: %v", err), http.StatusUnauthorized)
-		if err != nil {
-			return
-		}
+		app.errorJSON(w, fmt.Errorf("error extracting user ID from token: %v", err), http.StatusUnauthorized)
 		return
 	}
 
 	// Convert the UserID string to MongoDB ObjectID
 	userID, err := primitive.ObjectIDFromHex(userIDStr)
 	if err != nil {
-		err = app.errorJSON(w, fmt.Errorf("invalid UserID: %v", err), http.StatusBadRequest)
-		if err != nil {
-			return
-		}
+		app.errorJSON(w, fmt.Errorf("invalid UserID: %v", err), http.StatusBadRequest)
 		return
 	}
 
-	// Update the document in MongoDB with moderation status and comments
-	update := bson.M{
-		"moderated":      true,
-		"approvalStatus": payload.ApprovalStatus,
-		"comments":       payload.Comments,
-		"moderatedBy":    userID,
-		"moderatedAt":    time.Now(),
+	err = app.DB.InsertModerationData(userID, documentID, payload.ApprovalStatus, payload.Comments)
+	if err != nil {
+		app.errorJSON(w, errors.New("could not complete action"), http.StatusInternalServerError)
+		return
 	}
 
-	// Update the document based on its ID
+	// Step 2: Update the document in the `metadata` collection with the moderationID
+	update := bson.M{
+		"$set": bson.M{
+			"moderated": true,
+		},
+	}
+
+	log.Printf("Attempting to update document with ID: %s, update: %+v", documentID.Hex(), update) // for test
+
+	// Log the update data for debugging
+	log.Printf("Update data: %+v", update)
+
 	err = app.DB.UpdateDocumentsByID(documentID, update)
 	if err != nil {
-		log.Printf("Update error: %v", err) // Log the error
-		err = app.errorJSON(w, errors.New("could not complete action"), http.StatusInternalServerError)
-		if err != nil {
-			return
-		}
+		app.errorJSON(w, errors.New("could not update metadata"), http.StatusInternalServerError)
 		return
 	}
 
-	// Respond with success message
-	w.WriteHeader(http.StatusOK)
-	err = app.writeJSON(w, http.StatusOK, map[string]string{"message": "Action complete"})
+	// Respond with success message and additional details
+	response := map[string]interface{}{
+		"message":        "Action complete",
+		"documentID":     documentID.Hex(), // Document ID as string
+		"approvalStatus": payload.ApprovalStatus,
+		"comments":       payload.Comments,
+	}
+
+	err = app.writeJSON(w, http.StatusOK, response)
 	if err != nil {
 		return
 	}
