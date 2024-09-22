@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/golang-jwt/jwt"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -461,8 +463,79 @@ func (app *application) FAQs(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(faqs)
 }
 
-func (app *application) rateDocument(w http.ResponseWriter, r *http.Request) {
+func (app *application) moderateDocument(w http.ResponseWriter, r *http.Request) {
+	// Extract the document ID from the URL
+	documentIDStr := chi.URLParam(r, "id")
 
+	// Convert the document ID to MongoDB ObjectID
+	documentID, err := primitive.ObjectIDFromHex(documentIDStr)
+	if err != nil {
+		app.errorJSON(w, errors.New("invalid document ID"), http.StatusBadRequest)
+		return
+	}
+
+	// Read JSON payload from the request body
+	var payload struct {
+		ApprovalStatus string `json:"approvalStatus"`
+		Comments       string `json:"comments"`
+	}
+
+	err = app.readJSON(w, r, &payload)
+	if err != nil {
+		app.errorJSON(w, err, http.StatusBadRequest)
+		return
+	}
+
+	// Get the user ID from the token
+	userIDStr, err := app.auth.GetUserIDFromHeader(w, r)
+	if err != nil {
+		app.errorJSON(w, fmt.Errorf("error extracting user ID from token: %v", err), http.StatusUnauthorized)
+		return
+	}
+
+	// Convert the UserID string to MongoDB ObjectID
+	userID, err := primitive.ObjectIDFromHex(userIDStr)
+	if err != nil {
+		app.errorJSON(w, fmt.Errorf("invalid UserID: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	err = app.DB.InsertModerationData(userID, documentID, payload.ApprovalStatus, payload.Comments)
+	if err != nil {
+		app.errorJSON(w, errors.New("could not complete action"), http.StatusInternalServerError)
+		return
+	}
+
+	// Step 2: Update the document in the `metadata` collection with the moderationID
+	update := bson.M{
+		"$set": bson.M{
+			"moderated": true,
+		},
+	}
+
+	log.Printf("Attempting to update document with ID: %s, update: %+v", documentID.Hex(), update) // for test
+
+	err = app.DB.UpdateDocumentsByID(documentID, update)
+	if err != nil {
+		app.errorJSON(w, errors.New("could not update metadata"), http.StatusInternalServerError)
+		return
+	}
+
+	// Respond with success message and additional details
+	response := map[string]interface{}{
+		"message":        "Action complete",
+		"documentID":     documentID.Hex(), // Document ID as string
+		"approvalStatus": payload.ApprovalStatus,
+		"comments":       payload.Comments,
+	}
+
+	err = app.writeJSON(w, http.StatusOK, response)
+	if err != nil {
+		return
+	}
+}
+
+func (app *application) rateDocument(w http.ResponseWriter, r *http.Request) {
 	documentIDStr := chi.URLParam(r, "id")
 	if documentIDStr == "" {
 		err := app.errorJSON(w, fmt.Errorf("document ID is missing"), http.StatusBadRequest)

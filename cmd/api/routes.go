@@ -64,6 +64,16 @@ func (app *application) routes() http.Handler {
 
 	mux.Get("/faqs", app.FAQs)
 
+	// Route for moderating documents
+	mux.Route("/documents/{id}/moderate", func(mux chi.Router) {
+		mux.Use(func(next http.Handler) http.Handler {
+			return app.authRequired(next, "moderator", "admin")
+		})
+
+		mux.Put("/", app.moderateDocument) // Changed from Post to Put
+	})
+
+	// Route for rating documents
 	mux.Post("/rate-document/{id}", app.rateDocument)
 
 	return mux
