@@ -59,8 +59,11 @@ func (app *application) routes() http.Handler {
 			return app.authRequired(next, "moderator", "admin")
 		})
 
-		mux.Put("/", app.moderateDocument) // Change from Post to Put
+		mux.Put("/", app.moderateDocument) // Changed from Post to Put
 	})
+
+	// Route for rating documents
+	mux.Post("/rate-document/{id}", app.rateDocument)
 
 	return mux
 }

@@ -19,6 +19,9 @@ type DatabaseRepo interface {
 	GetFAQs() ([]models.FAQs, error)
 	UpdateDocumentsByID(documentID primitive.ObjectID, updateData bson.M) error
 	InsertModerationData(userID, documentID primitive.ObjectID, approvalStatus, comments string) error
+	GetDocumentByID(id primitive.ObjectID) (*models.Document, error)
+	SetDocumentRating(id primitive.ObjectID, rating *models.Rating) error
+	CreateDocumentRating(rating *models.Rating) error
 }
 
 type StorageRepo interface {
