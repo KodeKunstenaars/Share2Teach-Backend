@@ -17,9 +17,10 @@ type DatabaseRepo interface {
 	FindDocuments(title, subject, grade string) ([]models.Document, error)
 	GetFAQs() ([]models.FAQs, error)
 	GetDocumentByID(id primitive.ObjectID) (*models.Document, error)
-	//GetDocumentRating(id primitive.ObjectID) (*models.Rating, error)
+	GetDocumentRating(id primitive.ObjectID) (*models.Rating, error)
 	SetDocumentRating(id primitive.ObjectID, rating *models.Rating) error
 	CreateDocumentRating(rating *models.Rating) error
+	ChangeUserPassword(id primitive.ObjectID, newPassword string) error
 }
 
 type StorageRepo interface {

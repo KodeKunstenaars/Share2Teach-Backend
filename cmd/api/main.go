@@ -43,6 +43,7 @@ func main() {
 
 	mongoURI := os.Getenv("MONGODB_URI")
 	awsRegion := os.Getenv("AWS_REGION")
+	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
 
 	// read from command line
 	flag.StringVar(&app.DSN, "dsn", mongoURI, "MongoDB connection string")
@@ -51,6 +52,7 @@ func main() {
 	flag.StringVar(&app.JWTAudience, "jwt-audience", "example.com", "signing audience")
 	flag.StringVar(&app.CookieDomain, "cookie-domain", "localhost", "cookie domain")
 	flag.StringVar(&app.Domain, "domain", "example.com", "domain")
+	flag.StringVar(&googleClientID, "google-client-id", googleClientID, "Google client ID")
 	flag.Parse()
 
 	// connect to the database
