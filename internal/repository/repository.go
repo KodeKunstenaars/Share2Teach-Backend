@@ -14,7 +14,7 @@ type DatabaseRepo interface {
 	GetUserByID(id primitive.ObjectID) (*models.User, error)
 	RegisterUser(user *models.User) error
 	UploadDocumentMetadata(document *models.Document) error
-	FindDocuments(title, subject, grade string) ([]models.Document, error)
+	FindDocuments(title, subject, grade string, correctRole bool) ([]models.Document, error)
 	GetFAQs() ([]models.FAQs, error)
 	GetDocumentByID(id primitive.ObjectID) (*models.Document, error)
 	//GetDocumentRating(id primitive.ObjectID) (*models.Rating, error)

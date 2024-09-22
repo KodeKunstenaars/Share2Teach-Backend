@@ -90,7 +90,7 @@ func (m *MongoDBRepo) CreateDocumentRating(initialRating *models.Rating) error {
 	return nil
 }
 
-func (m *MongoDBRepo) FindDocuments(title, subject, grade string) ([]models.Document, error) {
+func (m *MongoDBRepo) FindDocuments(title, subject, grade string, correctRole bool) ([]models.Document, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel() //ensures that the context is canceled after the funtion returns
@@ -111,7 +111,6 @@ func (m *MongoDBRepo) FindDocuments(title, subject, grade string) ([]models.Docu
 
 		normalizedGrade := strings.ToLower(strings.TrimSpace(grade))
 		normalizedGrade = strings.ReplaceAll(normalizedGrade, " ", "")
-
 		normalizedGrade = strings.TrimPrefix(normalizedGrade, "grade")
 
 		filter["$or"] = []bson.M{
@@ -119,6 +118,11 @@ func (m *MongoDBRepo) FindDocuments(title, subject, grade string) ([]models.Docu
 			{"grade": bson.M{"$regex": primitive.Regex{Pattern: normalizedGrade, Options: "i"}}},
 		}
 
+	}
+	if correctRole == true {
+		filter["moderated"] = bson.M{"$in": []bool{true, false}}
+	} else {
+		filter["moderated"] = true
 	}
 
 	// cursor that loops through the DB to find the matching documents
