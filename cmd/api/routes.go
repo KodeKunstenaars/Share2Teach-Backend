@@ -55,5 +55,9 @@ func (app *application) routes() http.Handler {
 
 	mux.Post("/rate-document/{id}", app.rateDocument)
 
+	mux.Post("/request-reset-password", app.requestPasswordReset)
+
+	mux.Post("/confirm-reset-password", app.verifyPasswordReset)
+
 	return mux
 }

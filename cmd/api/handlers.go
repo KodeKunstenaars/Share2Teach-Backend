@@ -77,6 +77,12 @@ func (app *application) registerUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err = app.EM.SendWelcomeEmail(newUser.Email, newUser.FirstName, newUser.LastName)
+	if err != nil {
+		log.Printf("Error sending welcome email: %v", err)
+		return
+	}
+
 	err = app.writeJSON(w, http.StatusCreated, newUser)
 	if err != nil {
 		return
@@ -460,10 +466,7 @@ func (app *application) rateDocument(w http.ResponseWriter, r *http.Request) {
 
 	err = app.readJSON(w, r, &payload)
 	if err != nil {
-		err := app.errorJSON(w, err, http.StatusBadRequest)
-		if err != nil {
-			return
-		}
+		app.errorJSON(w, err, http.StatusBadRequest)
 		return
 	}
 
@@ -474,10 +477,7 @@ func (app *application) rateDocument(w http.ResponseWriter, r *http.Request) {
 	err = app.DB.SetDocumentRating(documentID, newRating)
 	if err != nil {
 		log.Printf("Error setting document rating into MongoDB: %v", err)
-		err := app.errorJSON(w, err, http.StatusInternalServerError)
-		if err != nil {
-			return
-		}
+		app.errorJSON(w, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -485,4 +485,107 @@ func (app *application) rateDocument(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
+}
+
+func (app *application) requestPasswordReset(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Email string `json:"email"`
+	}
+
+	err := app.readJSON(w, r, &payload)
+	if err != nil {
+		log.Printf("error reading JSON: %v", err)
+		app.errorJSON(w, err, http.StatusBadRequest)
+		return
+	}
+
+	user, err := app.DB.GetUserByEmail(payload.Email)
+	if err != nil {
+		log.Printf("error getting user by email: %v", err)
+		app.errorJSON(w, err, http.StatusNotFound)
+		return
+	}
+
+	resetToken, err := models.GenerateResetToken()
+	if err != nil {
+		log.Printf("error generating reset token: %v", err)
+		app.errorJSON(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	newPasswordReset := &models.PasswordReset{
+		ID:        primitive.NewObjectID(),
+		UserID:    user.ID,
+		Token:     resetToken,
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+		Spent:     false,
+	}
+
+	err = app.DB.StoreResetToken(newPasswordReset)
+	if err != nil {
+		app.errorJSON(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	err = app.EM.SendPasswordResetRequest(payload.Email, resetToken)
+	if err != nil {
+		log.Printf("error sending password reset email: %v", err)
+		app.errorJSON(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	// Respond to the client
+	resp := map[string]string{"message": "Password reset email sent successfully"}
+	app.writeJSON(w, http.StatusOK, resp)
+}
+
+func (app *application) verifyPasswordReset(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Email    string `json:"email"`
+		Token    string `json:"token"`
+		Password string `json:"password"`
+	}
+
+	err := app.readJSON(w, r, &payload)
+	if err != nil {
+		app.errorJSON(w, err, http.StatusBadRequest)
+		return
+	}
+
+	user, err := app.DB.GetUserByEmail(payload.Email)
+	if err != nil {
+		log.Printf("error getting user by email: %v", err)
+		app.errorJSON(w, err, http.StatusNotFound)
+		return
+	}
+
+	isValid, err := app.DB.VerifyResetToken(user.ID, payload.Token)
+	if err != nil {
+		log.Printf("error verifying reset token: %v", err)
+		app.errorJSON(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	if !isValid {
+		log.Printf("invalid reset token")
+		app.errorJSON(w, errors.New("invalid reset token"), http.StatusBadRequest)
+		return
+	}
+
+	hashedPassword, err := models.HashPassword(payload.Password)
+	if err != nil {
+		app.errorJSON(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	err = app.DB.ChangeUserPassword(user.ID, hashedPassword)
+	if err != nil {
+		log.Printf("error changing user password: %v", err)
+		app.errorJSON(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	// Return a success response
+	resp := map[string]string{"message": "Password reset successful"}
+	app.writeJSON(w, http.StatusOK, resp)
 }

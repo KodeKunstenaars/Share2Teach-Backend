@@ -20,6 +20,8 @@ type DatabaseRepo interface {
 	GetDocumentRating(id primitive.ObjectID) (*models.Rating, error)
 	SetDocumentRating(id primitive.ObjectID, rating *models.Rating) error
 	CreateDocumentRating(rating *models.Rating) error
+	StoreResetToken(resetKey *models.PasswordReset) error
+	VerifyResetToken(id primitive.ObjectID, resetKey string) (bool, error)
 	ChangeUserPassword(id primitive.ObjectID, newPassword string) error
 }
 
@@ -29,4 +31,9 @@ type StorageRepo interface {
 	CreateBucket(name string, region string) error
 	PutObject(bucketName string, objectKey string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error)
 	GetObject(bucketName string, objectKey string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error)
+}
+
+type MailRepo interface {
+	SendPasswordResetRequest(email, token string) error
+	SendWelcomeEmail(email string, firstName string, lastName string) error
 }

@@ -3,12 +3,14 @@ package main
 import (
 	"backend/internal/repository"
 	"backend/internal/repository/dbrepo"
+	"backend/internal/repository/mailrepo"
 	"backend/internal/repository/storagerepo"
 	"context"
 	"flag"
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"log"
 	"net/http"
 	"os"
@@ -24,6 +26,7 @@ type application struct {
 	Domain       string
 	DB           repository.DatabaseRepo
 	Storage      repository.StorageRepo
+	EM           repository.MailRepo
 	auth         Auth
 	JWTSecret    string
 	JWTIssuer    string
@@ -43,7 +46,7 @@ func main() {
 
 	mongoURI := os.Getenv("MONGODB_URI")
 	awsRegion := os.Getenv("AWS_REGION")
-	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
+	fromAddress := os.Getenv("FROM_ADDRESS")
 
 	// read from command line
 	flag.StringVar(&app.DSN, "dsn", mongoURI, "MongoDB connection string")
@@ -52,7 +55,6 @@ func main() {
 	flag.StringVar(&app.JWTAudience, "jwt-audience", "example.com", "signing audience")
 	flag.StringVar(&app.CookieDomain, "cookie-domain", "localhost", "cookie domain")
 	flag.StringVar(&app.Domain, "domain", "example.com", "domain")
-	flag.StringVar(&googleClientID, "google-client-id", googleClientID, "Google client ID")
 	flag.Parse()
 
 	// connect to the database
@@ -89,6 +91,7 @@ func main() {
 		log.Fatalf("unable to load AWS SDK config, %v", err)
 	}
 
+	sesClient := ses.NewFromConfig(cfg)
 	s3Client := s3.NewFromConfig(cfg)
 	presignClient := s3.NewPresignClient(s3Client)
 
@@ -96,6 +99,11 @@ func main() {
 	app.Storage = &storagerepo.StorageRepo{
 		S3Client:      s3Client,
 		PresignClient: presignClient,
+	}
+
+	app.EM = &mailrepo.MailRepo{
+		SESClient:   sesClient,
+		FromAddress: fromAddress,
 	}
 
 	log.Println("Starting application on port", port)
