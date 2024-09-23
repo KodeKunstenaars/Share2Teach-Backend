@@ -100,6 +100,8 @@ func (m *MongoDBRepo) FindDocuments(title, subject, grade string, correctRole bo
 
 	// Creates a filter for the query that only searches for the given parameters
 	// Search query for the parameters that is case-insensitive
+	// Creates a filter for the query that only searches for the given parameters
+	// Search query for the parameters that is case-insensitive
 	filter := bson.M{}
 
 	if title != "" {
@@ -263,6 +265,87 @@ func (m *MongoDBRepo) SetDocumentRating(docID primitive.ObjectID, rating *models
 	}
 
 	_, err = collectionForRating.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetDocumentRating retrieves the rating for a given document by its ID.
+func (m *MongoDBRepo) GetDocumentRating(docID primitive.ObjectID) (*models.Rating, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	collection := m.Client.Database(m.Database).Collection("ratings")
+
+	var rating models.Rating
+	err := collection.FindOne(ctx, bson.M{"doc_id": docID}).Decode(&rating)
+	if err != nil {
+		return nil, err
+	}
+
+	return &rating, nil
+}
+
+func (m *MongoDBRepo) StoreResetToken(resetEntry *models.PasswordReset) error {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	collection := m.Client.Database(m.Database).Collection("password_reset")
+
+	_, err := collection.InsertOne(ctx, resetEntry)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *MongoDBRepo) VerifyResetToken(userID primitive.ObjectID, token string) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	// Query the password_reset collection using "user_id"
+	collection := m.Client.Database(m.Database).Collection("password_reset")
+	filter := bson.M{"user_id": userID, "reset_token": token, "spent": false}
+
+	var resetEntry models.PasswordReset
+	err := collection.FindOne(ctx, filter).Decode(&resetEntry)
+	if err == mongo.ErrNoDocuments {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+
+	if time.Now().After(resetEntry.ExpiresAt) {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+// ChangeUserPassword updates the password for a given user by their ID.
+func (m *MongoDBRepo) ChangeUserPassword(userID primitive.ObjectID, newPassword string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	collection := m.Client.Database(m.Database).Collection("user_info")
+
+	filter := bson.M{"_id": userID}
+	update := bson.M{"$set": bson.M{"password": newPassword}}
+
+	_, err := collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+
+	resetCollection := m.Client.Database(m.Database).Collection("password_reset")
+
+	resetFilter := bson.M{"user_id": userID}
+	resetUpdate := bson.M{"$set": bson.M{"spent": true}}
+
+	_, err = resetCollection.UpdateOne(ctx, resetFilter, resetUpdate)
 	if err != nil {
 		return err
 	}
