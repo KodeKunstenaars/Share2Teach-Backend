@@ -47,11 +47,34 @@ func (app *application) routes() http.Handler {
 		mux.Post("/confirm", app.uploadDocumentMetadata)
 	})
 
-	mux.Get("/documents/search", app.searchDocuments)
+	// mux.Get("/admin/search", app.SearchDocuments)
+
+	mux.Get("/search", app.searchDocuments)
+
+	mux.Route("/admin/search", func(mux chi.Router) {
+
+		mux.Use(func(next http.Handler) http.Handler {
+			return app.authRequired(next, "admin", "moderator")
+		})
+
+		mux.Get("/", app.searchDocumentsAdminOrModerator)
+	})
 
 	mux.Get("/download-document/{id}", app.generatePresignedURLForDownload)
 
 	mux.Get("/faqs", app.FAQs)
+
+	// Route for moderating documents
+	mux.Route("/documents/{id}/moderate", func(mux chi.Router) {
+		mux.Use(func(next http.Handler) http.Handler {
+			return app.authRequired(next, "moderator", "admin")
+		})
+
+		mux.Put("/", app.moderateDocument) // Changed from Post to Put
+	})
+
+	// Route for rating documents
+	mux.Post("/rate-document/{id}", app.rateDocument)
 
 	return mux
 }

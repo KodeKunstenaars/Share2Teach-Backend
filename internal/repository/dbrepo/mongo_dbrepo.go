@@ -3,6 +3,7 @@ package dbrepo
 import (
 	"backend/internal/models"
 	"context"
+	"log"
 	"strings"
 	"time"
 
@@ -76,15 +77,29 @@ func (m *MongoDBRepo) UploadDocumentMetadata(document *models.Document) error {
 	return nil
 }
 
-func (m *MongoDBRepo) FindDocuments(title, subject, grade string) ([]models.Document, error) {
+func (m *MongoDBRepo) CreateDocumentRating(initialRating *models.Rating) error {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	collection := m.Client.Database(m.Database).Collection("ratings")
+
+	_, err := collection.InsertOne(ctx, initialRating)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *MongoDBRepo) FindDocuments(title, subject, grade string, correctRole bool) ([]models.Document, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
-	defer cancel() //ensures that the context is canceled after the funtion returns
+	defer cancel() // ensures that the context is canceled after the function returns
 
 	collection := m.Client.Database(m.Database).Collection("metadata")
 
-	//creates a filter for the query that only searches for the given parameters
-	// search query for the parameters that is case-insensitive
+	// Creates a filter for the query that only searches for the given parameters
+	// Search query for the parameters that is case-insensitive
 	filter := bson.M{}
 
 	if title != "" {
@@ -97,7 +112,6 @@ func (m *MongoDBRepo) FindDocuments(title, subject, grade string) ([]models.Docu
 
 		normalizedGrade := strings.ToLower(strings.TrimSpace(grade))
 		normalizedGrade = strings.ReplaceAll(normalizedGrade, " ", "")
-
 		normalizedGrade = strings.TrimPrefix(normalizedGrade, "grade")
 
 		filter["$or"] = []bson.M{
@@ -106,18 +120,23 @@ func (m *MongoDBRepo) FindDocuments(title, subject, grade string) ([]models.Docu
 		}
 
 	}
+	if correctRole == true {
+		filter["moderated"] = bson.M{"$in": []bool{true, false}}
+	} else {
+		filter["moderated"] = true
+	}
 
-	// cursor that loops through the DB to find the matching documents
+	// Cursor that loops through the DB to find the matching documents
 	cursor, err := collection.Find(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
 
-	// slice that will hold all documents that match the filter
+	// Slice that will hold all documents that match the filter
 	var documents []models.Document
 
-	// loops through the filter and adds the documents to the slice
+	// Loops through the filter and adds the documents to the slice
 	for cursor.Next(ctx) {
 		var doc models.Document
 		if err := cursor.Decode(&doc); err != nil {
@@ -128,7 +147,6 @@ func (m *MongoDBRepo) FindDocuments(title, subject, grade string) ([]models.Docu
 	}
 
 	if err := cursor.Err(); err != nil {
-
 		return nil, err
 	}
 
@@ -163,4 +181,91 @@ func (m *MongoDBRepo) GetFAQs() ([]models.FAQs, error) {
 	}
 
 	return faqs, nil
+}
+
+// UpdateDocumentsByID updates the document data by ID.
+func (m *MongoDBRepo) UpdateDocumentsByID(documentID primitive.ObjectID, updateData bson.M) error {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	collection := m.Client.Database(m.Database).Collection("metadata")
+
+	filter := bson.M{"_id": documentID}
+	// No need for another $set here, we assume updateData has the correct update format
+	update := updateData
+
+	_, err := collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		log.Printf("Error updating document with ID %s: %v", documentID.Hex(), err)
+		return err
+	}
+
+	return nil
+}
+
+// InsertModerationData inserts the moderation data into the "moderate" collection.
+func (m *MongoDBRepo) InsertModerationData(userID, documentID primitive.ObjectID, approvalStatus, comments string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	collection := m.Client.Database(m.Database).Collection("moderate")
+
+	moderationData := bson.M{
+		"moderatedBy":    userID,
+		"documentID":     documentID,
+		"approvalStatus": approvalStatus,
+		"comments":       comments,
+		"moderatedAt":    time.Now(),
+	}
+
+	_, err := collection.InsertOne(ctx, moderationData)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetDocumentByID retrieves a document by its ID.
+func (m *MongoDBRepo) GetDocumentByID(id primitive.ObjectID) (*models.Document, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	collection := m.Client.Database(m.Database).Collection("metadata")
+
+	var document models.Document
+	err := collection.FindOne(ctx, bson.M{"_id": id}).Decode(&document)
+	if err != nil {
+		return nil, err
+	}
+
+	return &document, nil
+}
+
+// SetDocumentRating inserts or updates the rating for a given document by its ID.
+func (m *MongoDBRepo) SetDocumentRating(docID primitive.ObjectID, rating *models.Rating) error {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	collectionForDocument := m.Client.Database(m.Database).Collection("metadata")
+	var document models.Document
+
+	err := collectionForDocument.FindOne(ctx, bson.M{"_id": docID}).Decode(&document)
+	if err != nil {
+		return err
+	}
+
+	collectionForRating := m.Client.Database(m.Database).Collection("ratings")
+	filter := bson.M{"_id": document.RatingID}
+	update := bson.M{
+		"$inc": bson.M{"times_rated": 1, "total_rating": rating.TotalRating},
+		"$set": bson.M{"average_rating": bson.M{"$divide": []interface{}{"$total_rating", "$times_rated"}}},
+	}
+
+	_, err = collectionForRating.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/golang-jwt/jwt"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -250,6 +251,8 @@ func (app *application) listBuckets(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) uploadDocumentMetadata(w http.ResponseWriter, r *http.Request) {
+	ratingID := primitive.NewObjectID()
+
 	// Get the user ID from the token
 	userIDStr, err := app.auth.GetUserIDFromHeader(w, r)
 	if err != nil {
@@ -289,16 +292,33 @@ func (app *application) uploadDocumentMetadata(w http.ResponseWriter, r *http.Re
 	newDocument := &models.Document{
 		ID:        payload.DocumentID,
 		Title:     payload.Title,
-		CreatedAt: time.Now(),
+		CreatedAt: time.Now().UTC().Add(2 * time.Hour),
 		UserID:    userID,
 		Moderated: false,
 		Subject:   payload.Subject,
 		Grade:     payload.Grade,
+		Reported:  false,
+		RatingID:  ratingID,
 	}
 
 	err = app.DB.UploadDocumentMetadata(newDocument)
 	if err != nil {
 		log.Printf("Error inserting document into MongoDB: %v", err)
+		err := app.errorJSON(w, err, http.StatusInternalServerError)
+		if err != nil {
+			return
+		}
+		return
+	}
+
+	initialRating := &models.Rating{
+		ID:    ratingID,
+		DocID: newDocument.ID,
+	}
+
+	err = app.DB.CreateDocumentRating(initialRating)
+	if err != nil {
+		log.Printf("Error inserting document rating into MongoDB: %v", err)
 		err := app.errorJSON(w, err, http.StatusInternalServerError)
 		if err != nil {
 			return
@@ -319,7 +339,10 @@ func (app *application) generatePresignedURLForUpload(w http.ResponseWriter, r *
 	// Generate the presigned URL for the client to upload the document
 	presignedRequest, err := app.Storage.PutObject("share2teach", objectKey, 3600)
 	if err != nil {
-		app.errorJSON(w, fmt.Errorf("error generating presigned URL: %v", err), http.StatusInternalServerError)
+		err := app.errorJSON(w, fmt.Errorf("error generating presigned URL: %v", err), http.StatusInternalServerError)
+		if err != nil {
+			return
+		}
 		return
 	}
 
@@ -342,9 +365,10 @@ func (app *application) searchDocuments(w http.ResponseWriter, r *http.Request) 
 	title := r.URL.Query().Get("title")
 	subject := r.URL.Query().Get("subject")
 	grade := r.URL.Query().Get("grade")
+	correctRole := false
 
 	// finds the documents that match the given title
-	documents, err := app.DB.FindDocuments(title, subject, grade)
+	documents, err := app.DB.FindDocuments(title, subject, grade, correctRole)
 	if err != nil {
 		app.errorJSON(w, fmt.Errorf("error finding documents: %v", err), http.StatusInternalServerError)
 		log.Println("error finding documents:", err)
@@ -352,7 +376,33 @@ func (app *application) searchDocuments(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if len(documents) == 0 {
-		app.errorJSON(w, fmt.Errorf("no documents found with this title"), http.StatusNotFound)
+		app.errorJSON(w, fmt.Errorf("no documents found"), http.StatusNotFound)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, documents)
+	if err != nil {
+		app.errorJSON(w, fmt.Errorf("error encoding response: %v", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (app *application) searchDocumentsAdminOrModerator(w http.ResponseWriter, r *http.Request) {
+	title := r.URL.Query().Get("title")
+	subject := r.URL.Query().Get("subject")
+	grade := r.URL.Query().Get("grade")
+	correctRole := true
+
+	// finds the documents that match the given title
+	documents, err := app.DB.FindDocuments(title, subject, grade, correctRole)
+	if err != nil {
+		app.errorJSON(w, fmt.Errorf("error finding documents: %v", err), http.StatusInternalServerError)
+		log.Println("error finding documents:", err)
+		return
+	}
+
+	if len(documents) == 0 {
+		app.errorJSON(w, fmt.Errorf("no documents found"), http.StatusNotFound)
 		return
 	}
 
@@ -364,15 +414,14 @@ func (app *application) searchDocuments(w http.ResponseWriter, r *http.Request) 
 }
 
 func (app *application) generatePresignedURLForDownload(w http.ResponseWriter, r *http.Request) {
-	documentIDStr := chi.URLParam(r, "id")
 
-	// Ensure documentID is provided
+	documentIDStr := chi.URLParam(r, "id")
 	if documentIDStr == "" {
 		app.errorJSON(w, fmt.Errorf("document ID is missing"), http.StatusBadRequest)
 		return
 	}
 
-	// Convert the documentID from string to primitive.ObjectID
+	// Convert the documentID to primitive.ObjectID
 	documentID, err := primitive.ObjectIDFromHex(documentIDStr)
 	if err != nil {
 		app.errorJSON(w, fmt.Errorf("invalid document ID: %v", err), http.StatusBadRequest)
@@ -381,14 +430,14 @@ func (app *application) generatePresignedURLForDownload(w http.ResponseWriter, r
 
 	objectKey := fmt.Sprint(documentID.Hex())
 
-	// Generate the presigned URL for the S3 object using the document ID
+	// Generate the presigned URL
 	presignedRequest, err := app.Storage.GetObject("share2teach", objectKey, 3600)
 	if err != nil {
 		app.errorJSON(w, fmt.Errorf("error generating presigned URL: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Return the presigned URL and document ID to the client
+	// Return the presigned URL
 	response := struct {
 		PresignedURL string `json:"presigned_url"`
 	}{
@@ -417,4 +466,128 @@ func (app *application) FAQs(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(faqs)
+}
+
+func (app *application) moderateDocument(w http.ResponseWriter, r *http.Request) {
+	// Extract the document ID from the URL
+	documentIDStr := chi.URLParam(r, "id")
+
+	// Convert the document ID to MongoDB ObjectID
+	documentID, err := primitive.ObjectIDFromHex(documentIDStr)
+	if err != nil {
+		app.errorJSON(w, errors.New("invalid document ID"), http.StatusBadRequest)
+		return
+	}
+
+	// Read JSON payload from the request body
+	var payload struct {
+		ApprovalStatus string `json:"approvalStatus"`
+		Comments       string `json:"comments"`
+	}
+
+	err = app.readJSON(w, r, &payload)
+	if err != nil {
+		app.errorJSON(w, err, http.StatusBadRequest)
+		return
+	}
+
+	// Get the user ID from the token
+	userIDStr, err := app.auth.GetUserIDFromHeader(w, r)
+	if err != nil {
+		app.errorJSON(w, fmt.Errorf("error extracting user ID from token: %v", err), http.StatusUnauthorized)
+		return
+	}
+
+	// Convert the UserID string to MongoDB ObjectID
+	userID, err := primitive.ObjectIDFromHex(userIDStr)
+	if err != nil {
+		app.errorJSON(w, fmt.Errorf("invalid UserID: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	err = app.DB.InsertModerationData(userID, documentID, payload.ApprovalStatus, payload.Comments)
+	if err != nil {
+		app.errorJSON(w, errors.New("could not complete action"), http.StatusInternalServerError)
+		return
+	}
+
+	// Step 2: Update the document in the `metadata` collection with the moderationID
+	update := bson.M{
+		"$set": bson.M{
+			"moderated": true,
+		},
+	}
+
+	log.Printf("Attempting to update document with ID: %s, update: %+v", documentID.Hex(), update) // for test
+
+	err = app.DB.UpdateDocumentsByID(documentID, update)
+	if err != nil {
+		app.errorJSON(w, errors.New("could not update metadata"), http.StatusInternalServerError)
+		return
+	}
+
+	// Respond with success message and additional details
+	response := map[string]interface{}{
+		"message":        "Action complete",
+		"documentID":     documentID.Hex(), // Document ID as string
+		"approvalStatus": payload.ApprovalStatus,
+		"comments":       payload.Comments,
+	}
+
+	err = app.writeJSON(w, http.StatusOK, response)
+	if err != nil {
+		return
+	}
+}
+
+func (app *application) rateDocument(w http.ResponseWriter, r *http.Request) {
+	documentIDStr := chi.URLParam(r, "id")
+	if documentIDStr == "" {
+		err := app.errorJSON(w, fmt.Errorf("document ID is missing"), http.StatusBadRequest)
+		if err != nil {
+			return
+		}
+		return
+	}
+
+	documentID, err := primitive.ObjectIDFromHex(documentIDStr)
+	if err != nil {
+		err := app.errorJSON(w, fmt.Errorf("invalid document ID: %v", err), http.StatusBadRequest)
+		if err != nil {
+			return
+		}
+		return
+	}
+
+	var payload struct {
+		TotalRating int `json:"total_rating"`
+	}
+
+	err = app.readJSON(w, r, &payload)
+	if err != nil {
+		err := app.errorJSON(w, err, http.StatusBadRequest)
+		if err != nil {
+			return
+		}
+		return
+	}
+
+	newRating := &models.Rating{
+		TotalRating: payload.TotalRating,
+	}
+
+	err = app.DB.SetDocumentRating(documentID, newRating)
+	if err != nil {
+		log.Printf("Error setting document rating into MongoDB: %v", err)
+		err := app.errorJSON(w, err, http.StatusInternalServerError)
+		if err != nil {
+			return
+		}
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusCreated, newRating)
+	if err != nil {
+		return
+	}
 }
