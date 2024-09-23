@@ -65,8 +65,15 @@ func (app *application) routes() http.Handler {
 	// Route for rating documents
 	mux.Post("/rate-document/{id}", app.rateDocument)
 
-	// Route for reporting documents
-	mux.Post("/documents/{id}/report", app.reportDocument)
+	mux.Route("/documents/{id}/report", func(mux chi.Router) {
+		// Require authentication for all roles
+		mux.Use(func(next http.Handler) http.Handler {
+			return app.authRequired(next)
+		})
+
+		// Define the POST route for submitting a report
+		mux.Post("/", app.reportDocument)
+	})
 
 	return mux
 }
