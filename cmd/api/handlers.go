@@ -559,3 +559,63 @@ func (app *application) rateDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func (app *application) reportDocument(w http.ResponseWriter, r *http.Request) {
+	// Extract the document ID from the URL
+	documentIDStr := chi.URLParam(r, "id")
+	documentID, err := primitive.ObjectIDFromHex(documentIDStr)
+	if err != nil {
+		app.errorJSON(w, errors.New("invalid document ID"), http.StatusBadRequest)
+		return
+	}
+
+	// Read JSON payload from the request body
+	var payload struct {
+		Reason string `json:"reason"`
+	}
+
+	err = app.readJSON(w, r, &payload)
+	if err != nil || payload.Reason == "" {
+		app.errorJSON(w, errors.New("reason must be provided"), http.StatusBadRequest)
+		return
+	}
+
+	// Get the user ID from the token (assuming it's available in the request header)
+	userIDStr, err := app.auth.GetUserIDFromHeader(w, r)
+	if err != nil {
+		app.errorJSON(w, errors.New("user not authenticated"), http.StatusUnauthorized)
+		return
+	}
+
+	// Convert the user ID to an ObjectID
+	userID, err := primitive.ObjectIDFromHex(userIDStr)
+	if err != nil {
+		app.errorJSON(w, errors.New("invalid user ID"), http.StatusBadRequest)
+		return
+	}
+
+	// Prepare the report data
+	report := bson.M{
+		"documentID": documentID,
+		"reportedBy": userID,
+		"reason":     payload.Reason,
+		"reportedAt": time.Now(),
+	}
+
+	// Insert the report into the 'reports' collection
+	_, err = app.DB.InsertReport(report)
+	if err != nil {
+		app.errorJSON(w, errors.New("could not submit report"), http.StatusInternalServerError)
+		return
+	}
+
+	// Respond with success
+	response := map[string]string{
+		"message": "Report submitted",
+	}
+
+	err = app.writeJSON(w, http.StatusOK, response)
+	if err != nil {
+		return
+	}
+}
