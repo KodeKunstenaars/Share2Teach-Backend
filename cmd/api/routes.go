@@ -82,5 +82,8 @@ func (app *application) routes() http.Handler {
 
 	mux.Post("/confirm-reset-password", app.verifyPasswordReset)
 
+	// Route for reporting documents
+	mux.Post("/documents/{id}/report", app.reportDocument)
+
 	return mux
 }

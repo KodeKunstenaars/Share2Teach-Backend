@@ -8,6 +8,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type DatabaseRepo interface {
@@ -26,6 +27,7 @@ type DatabaseRepo interface {
 	ChangeUserPassword(id primitive.ObjectID, newPassword string) error
 	UpdateDocumentsByID(documentID primitive.ObjectID, updateData bson.M) error
 	InsertModerationData(userID, documentID primitive.ObjectID, approvalStatus, comments string) error
+	InsertReport(report bson.M) (*mongo.InsertOneResult, error)
 }
 
 type StorageRepo interface {
