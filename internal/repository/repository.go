@@ -16,13 +16,17 @@ type DatabaseRepo interface {
 	GetUserByID(id primitive.ObjectID) (*models.User, error)
 	RegisterUser(user *models.User) error
 	UploadDocumentMetadata(document *models.Document) error
-	FindDocuments(title, subject, grade string) ([]models.Document, error)
+	FindDocuments(title, subject, grade string, correctRole bool) ([]models.Document, error)
 	GetFAQs() ([]models.FAQs, error)
-	UpdateDocumentsByID(documentID primitive.ObjectID, updateData bson.M) error
-	InsertModerationData(userID, documentID primitive.ObjectID, approvalStatus, comments string) error
 	GetDocumentByID(id primitive.ObjectID) (*models.Document, error)
+	GetDocumentRating(id primitive.ObjectID) (*models.Rating, error)
 	SetDocumentRating(id primitive.ObjectID, rating *models.Rating) error
 	CreateDocumentRating(rating *models.Rating) error
+	StoreResetToken(resetKey *models.PasswordReset) error
+	VerifyResetToken(id primitive.ObjectID, resetKey string) (bool, error)
+	ChangeUserPassword(id primitive.ObjectID, newPassword string) error
+	UpdateDocumentsByID(documentID primitive.ObjectID, updateData bson.M) error
+	InsertModerationData(userID, documentID primitive.ObjectID, approvalStatus, comments string) error
 	InsertReport(report bson.M) (*mongo.InsertOneResult, error)
 }
 
@@ -32,4 +36,9 @@ type StorageRepo interface {
 	CreateBucket(name string, region string) error
 	PutObject(bucketName string, objectKey string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error)
 	GetObject(bucketName string, objectKey string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error)
+}
+
+type MailRepo interface {
+	SendPasswordResetRequest(email, token string) error
+	SendWelcomeEmail(email string, firstName string, lastName string) error
 }
