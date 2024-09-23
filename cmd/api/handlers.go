@@ -481,7 +481,7 @@ func (app *application) rateDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusCreated, newRating)
+	err = app.writeJSON(w, http.StatusCreated, "Rating added successfully")
 	if err != nil {
 		return
 	}
