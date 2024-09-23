@@ -269,3 +269,16 @@ func (m *MongoDBRepo) SetDocumentRating(docID primitive.ObjectID, rating *models
 
 	return nil
 }
+
+func (m *MongoDBRepo) InsertReport(report bson.M) (*mongo.InsertOneResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	collection := m.Client.Database(m.Database).Collection("reports")
+	result, err := collection.InsertOne(ctx, report)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}

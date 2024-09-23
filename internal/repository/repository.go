@@ -8,6 +8,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type DatabaseRepo interface {
@@ -22,6 +23,7 @@ type DatabaseRepo interface {
 	GetDocumentByID(id primitive.ObjectID) (*models.Document, error)
 	SetDocumentRating(id primitive.ObjectID, rating *models.Rating) error
 	CreateDocumentRating(rating *models.Rating) error
+	InsertReport(report bson.M) (*mongo.InsertOneResult, error)
 }
 
 type StorageRepo interface {

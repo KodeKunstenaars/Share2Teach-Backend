@@ -76,5 +76,8 @@ func (app *application) routes() http.Handler {
 	// Route for rating documents
 	mux.Post("/rate-document/{id}", app.rateDocument)
 
+	// Route for reporting documents
+	mux.Post("/documents/{id}/report", app.reportDocument)
+
 	return mux
 }
