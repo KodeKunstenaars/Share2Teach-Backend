@@ -39,11 +39,15 @@ func main() {
 	var app application
 
 	// load environment variables
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
+	if os.Getenv("RUNNING_IN_DOCKER") != "true" {
+		// Load .env file if not running in Docker
+		err := godotenv.Load(".env")
+		if err != nil {
+			log.Println("Error loading .env file")
+		}
 	}
 
+	// After either loading from the .env file or relying on passed environment variables
 	mongoURI := os.Getenv("MONGODB_URI")
 	awsRegion := os.Getenv("AWS_REGION")
 	fromAddress := os.Getenv("FROM_ADDRESS")
