@@ -2,6 +2,7 @@ package dbrepo
 
 import (
 	"backend/internal/models"
+	"backend/pkg/db"
 	"context"
 	"log"
 	"strings"
@@ -13,8 +14,27 @@ import (
 )
 
 type MongoDBRepo struct {
-	Client   *mongo.Client
-	Database string
+	//database           db.Database
+	userInfoCollection      db.Collection
+	passwordResetCollection db.Collection
+	metadataCollection      db.Collection
+	ratingsCollection       db.Collection
+	faqsCollection          db.Collection
+	moderateCollection      db.Collection
+	reportsCollection       db.Collection
+}
+
+func NewMongoDBRepo(client *mongo.Client, databaseName string) *MongoDBRepo {
+	database := client.Database(databaseName)
+	return &MongoDBRepo{
+		userInfoCollection:      database.Collection("user_info"),
+		passwordResetCollection: database.Collection("password_reset"),
+		metadataCollection:      database.Collection("metadata"),
+		ratingsCollection:       database.Collection("ratings"),
+		faqsCollection:          database.Collection("faqs"),
+		moderateCollection:      database.Collection("moderate"),
+		reportsCollection:       database.Collection("reports"),
+	}
 }
 
 const dbTimeout = time.Second * 3
@@ -23,7 +43,7 @@ func (m *MongoDBRepo) GetUserByEmail(email string) (*models.User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	collection := m.Client.Database(m.Database).Collection("user_info")
+	collection := m.userInfoCollection
 
 	var user models.User
 	err := collection.FindOne(ctx, bson.M{"email": email}).Decode(&user)
@@ -38,7 +58,7 @@ func (m *MongoDBRepo) GetUserByID(id primitive.ObjectID) (*models.User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	collection := m.Client.Database(m.Database).Collection("user_info")
+	collection := m.userInfoCollection
 
 	var user models.User
 	err := collection.FindOne(ctx, bson.M{"_id": id}).Decode(&user)
@@ -53,7 +73,7 @@ func (m *MongoDBRepo) RegisterUser(user *models.User) error {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	collection := m.Client.Database(m.Database).Collection("user_info")
+	collection := m.userInfoCollection
 
 	_, err := collection.InsertOne(ctx, user)
 	if err != nil {
@@ -67,7 +87,7 @@ func (m *MongoDBRepo) UploadDocumentMetadata(document *models.Document) error {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	collection := m.Client.Database(m.Database).Collection("metadata")
+	collection := m.metadataCollection
 
 	_, err := collection.InsertOne(ctx, document)
 	if err != nil {
@@ -81,7 +101,7 @@ func (m *MongoDBRepo) CreateDocumentRating(initialRating *models.Rating) error {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	collection := m.Client.Database(m.Database).Collection("ratings")
+	collection := m.ratingsCollection
 
 	_, err := collection.InsertOne(ctx, initialRating)
 	if err != nil {
@@ -96,7 +116,7 @@ func (m *MongoDBRepo) FindDocuments(title, subject, grade string, correctRole bo
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel() // ensures that the context is canceled after the function returns
 
-	collection := m.Client.Database(m.Database).Collection("metadata")
+	collection := m.metadataCollection
 
 	// Creates a filter for the query that only searches for the given parameters
 	// Search query for the parameters that is case-insensitive
@@ -162,7 +182,7 @@ func (m *MongoDBRepo) GetFAQs() ([]models.FAQs, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	collection := m.Client.Database(m.Database).Collection("faqs")
+	collection := m.faqsCollection
 
 	cursor, err := collection.Find(ctx, bson.M{})
 	if err != nil {
@@ -192,7 +212,7 @@ func (m *MongoDBRepo) UpdateDocumentsByID(documentID primitive.ObjectID, updateD
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	collection := m.Client.Database(m.Database).Collection("metadata")
+	collection := m.metadataCollection
 
 	filter := bson.M{"_id": documentID}
 	// No need for another $set here, we assume updateData has the correct update format
@@ -212,7 +232,7 @@ func (m *MongoDBRepo) InsertModerationData(userID, documentID primitive.ObjectID
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	collection := m.Client.Database(m.Database).Collection("moderate")
+	collection := m.moderateCollection
 
 	moderationData := bson.M{
 		"moderatedBy":    userID,
@@ -235,7 +255,7 @@ func (m *MongoDBRepo) GetDocumentByID(id primitive.ObjectID) (*models.Document, 
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	collection := m.Client.Database(m.Database).Collection("metadata")
+	collection := m.metadataCollection
 
 	var document models.Document
 	err := collection.FindOne(ctx, bson.M{"_id": id}).Decode(&document)
@@ -251,7 +271,7 @@ func (m *MongoDBRepo) SetDocumentRating(docID primitive.ObjectID, rating *models
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	collectionForDocument := m.Client.Database(m.Database).Collection("metadata")
+	collectionForDocument := m.metadataCollection
 	var document models.Document
 
 	err := collectionForDocument.FindOne(ctx, bson.M{"_id": docID}).Decode(&document)
@@ -259,7 +279,7 @@ func (m *MongoDBRepo) SetDocumentRating(docID primitive.ObjectID, rating *models
 		return err
 	}
 
-	collectionForRating := m.Client.Database(m.Database).Collection("ratings")
+	collectionForRating := m.ratingsCollection
 	filter := bson.M{"_id": document.RatingID}
 	update := bson.M{
 		"$inc": bson.M{"times_rated": 1, "total_rating": rating.TotalRating},
@@ -279,7 +299,7 @@ func (m *MongoDBRepo) GetDocumentRating(docID primitive.ObjectID) (*models.Ratin
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	collection := m.Client.Database(m.Database).Collection("ratings")
+	collection := m.ratingsCollection
 
 	var rating models.Rating
 	err := collection.FindOne(ctx, bson.M{"doc_id": docID}).Decode(&rating)
@@ -294,7 +314,7 @@ func (m *MongoDBRepo) StoreResetToken(resetEntry *models.PasswordReset) error {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	collection := m.Client.Database(m.Database).Collection("password_reset")
+	collection := m.passwordResetCollection
 
 	_, err := collection.InsertOne(ctx, resetEntry)
 	if err != nil {
@@ -309,7 +329,7 @@ func (m *MongoDBRepo) VerifyResetToken(userID primitive.ObjectID, token string) 
 	defer cancel()
 
 	// Query the password_reset collection using "user_id"
-	collection := m.Client.Database(m.Database).Collection("password_reset")
+	collection := m.passwordResetCollection
 	filter := bson.M{"user_id": userID, "reset_token": token, "spent": false}
 
 	var resetEntry models.PasswordReset
@@ -332,7 +352,7 @@ func (m *MongoDBRepo) ChangeUserPassword(userID primitive.ObjectID, newPassword 
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	collection := m.Client.Database(m.Database).Collection("user_info")
+	collection := m.userInfoCollection
 
 	filter := bson.M{"_id": userID}
 	update := bson.M{"$set": bson.M{"password": newPassword}}
@@ -342,7 +362,7 @@ func (m *MongoDBRepo) ChangeUserPassword(userID primitive.ObjectID, newPassword 
 		return err
 	}
 
-	resetCollection := m.Client.Database(m.Database).Collection("password_reset")
+	resetCollection := m.passwordResetCollection
 
 	resetFilter := bson.M{"user_id": userID}
 	resetUpdate := bson.M{"$set": bson.M{"spent": true}}
@@ -359,7 +379,7 @@ func (m *MongoDBRepo) InsertReport(report bson.M) (*mongo.InsertOneResult, error
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	collection := m.Client.Database(m.Database).Collection("reports")
+	collection := m.reportsCollection
 	result, err := collection.InsertOne(ctx, report)
 	if err != nil {
 		return nil, err
