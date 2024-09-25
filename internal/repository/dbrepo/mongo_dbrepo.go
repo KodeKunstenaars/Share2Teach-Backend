@@ -124,8 +124,10 @@ func (m *MongoDBRepo) FindDocuments(title, subject, grade string, correctRole bo
 	}
 	if correctRole == true {
 		filter["moderated"] = bson.M{"$in": []bool{true, false}}
+		//filter["reported"] = bson.M{"$in": []bool{true, false}}
 	} else {
 		filter["moderated"] = true
+		filter["reported"] = false
 	}
 
 	// Cursor that loops through the DB to find the matching documents
