@@ -340,7 +340,7 @@ func (app *application) uploadDocumentMetadata(w http.ResponseWriter, r *http.Re
 
 func (app *application) generatePresignedURLForUpload(w http.ResponseWriter, r *http.Request) {
 	documentID := primitive.NewObjectID()
-	objectKey := fmt.Sprintf( /*"documents/%s",*/ documentID.Hex()) // Object key for S3
+	objectKey := fmt.Sprint( /*"documents/%s",*/ documentID.Hex()) // Object key for S3
 
 	// Generate the presigned URL for the client to upload the document
 	presignedRequest, err := app.Storage.PutObject("share2teach", objectKey, 3600)
@@ -430,7 +430,7 @@ func (app *application) generatePresignedURLForDownload(w http.ResponseWriter, r
 		return
 	}
 
-	objectKey := fmt.Sprintf(documentID.Hex())
+	objectKey := fmt.Sprint(documentID.Hex())
 
 	// Generate the presigned URL
 	presignedRequest, err := app.Storage.GetObject("share2teach", objectKey, 3600)
@@ -458,6 +458,11 @@ func (app *application) FAQs(w http.ResponseWriter, r *http.Request) {
 	faqs, err := app.DB.GetFAQs()
 	if err != nil {
 		http.Error(w, "Failed to fetch FAQs", http.StatusInternalServerError)
+		return
+	}
+
+	if len(faqs) == 0 {
+		app.errorJSON(w, fmt.Errorf("no FAQs found in the database"), http.StatusNotFound)
 		return
 	}
 
