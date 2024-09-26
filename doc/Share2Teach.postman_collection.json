@@ -1,0 +1,637 @@
+{
+	"info": {
+		"_postman_id": "861002f3-3e60-4dae-bb25-f41671f6fbab",
+		"name": "Share2Teach",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "38515716"
+	},
+	"item": [
+		{
+			"name": "User",
+			"item": [
+				{
+					"name": "Register",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"first_name\": \"{{first_name}}\",\n    \"last_name\": \"{{last_name}}\",\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\",\n    \"role\": \"{{role}}\",\n    \"qualification\": \"{{qualification}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{URL}}/register",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let responseData = pm.response.json();",
+									"",
+									"pm.collectionVariables.set(\"access_token\", responseData.access_token);",
+									"pm.collectionVariables.set(\"refresh_token\", responseData.refresh_token);"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{URL}}/authenticate",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"authenticate"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{refresh_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{URL}}/refresh",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"refresh"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{URL}}/logout",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"logout"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Test Role",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{URL}}/buckets",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"buckets"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Request Password Reset",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{email}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{URL}}/request-reset-password",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"request-reset-password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Confirm Reset Password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{URL}}/confirm-reset-password",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"confirm-reset-password"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Document",
+			"item": [
+				{
+					"name": "Upload",
+					"item": [
+						{
+							"name": "Presing",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"let responseData = pm.response.json();",
+											"",
+											"pm.collectionVariables.set(\"document_id\", responseData.document_id);",
+											"pm.collectionVariables.set(\"upload_url\", responseData.presigned_url)"
+										],
+										"type": "text/javascript",
+										"packages": {}
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{access_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{URL}}/upload-document/presigned-url",
+									"host": [
+										"{{URL}}"
+									],
+									"path": [
+										"upload-document",
+										"presigned-url"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Upload to AWS",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"url": {
+									"raw": "{{upload_url}}",
+									"host": [
+										"{{upload_url}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Confirm",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript",
+										"packages": {}
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"document_id\": \"{{document_id}}\",\n    \"title\": \"{{document_title}}\",\n    \"subject\": \"{{document_subject}}\",\n    \"grade\": \"{{document_grade}}\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{URL}}/upload-document/confirm",
+									"host": [
+										"{{URL}}"
+									],
+									"path": [
+										"upload-document",
+										"confirm"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Download",
+					"item": [
+						{
+							"name": "Presign",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"let responseData = pm.response.json();",
+											"",
+											"pm.collectionVariables.set(\"download_url\", responseData.presigned_url)"
+										],
+										"type": "text/javascript",
+										"packages": {}
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{URL}}/download-document/{{document_id}}",
+									"host": [
+										"{{URL}}"
+									],
+									"path": [
+										"download-document",
+										"{{document_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Confirm",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Search",
+					"item": [
+						{
+							"name": "Admin Search",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{access_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{URL}}/search?title={{document_title}}&subject&grade",
+									"host": [
+										"{{URL}}"
+									],
+									"path": [
+										"search"
+									],
+									"query": [
+										{
+											"key": "title",
+											"value": "{{document_title}}"
+										},
+										{
+											"key": "subject",
+											"value": null
+										},
+										{
+											"key": "grade",
+											"value": null
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "User Search",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Interact",
+					"item": [
+						{
+							"name": "Rate",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"total_rating\": {{rating}}\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{URL}}/rate-document/{{document_id}}",
+									"host": [
+										"{{URL}}"
+									],
+									"path": [
+										"rate-document",
+										"{{document_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Report",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJleGFtcGxlLmNvbSIsImV4cCI6MTcyNzEwMzczOCwiaWF0IjoxNzI3MTAyODM4LCJpc3MiOiJleGFtcGxlLmNvbSIsIm5hbWUiOiJKYWNrIExlZSIsInJvbGUiOiJhZG1pbiIsInN1YiI6IjY2ZjE3YjUyNWYxYWViMmFhOWVjN2Y3NiIsInR5cCI6IkpXVCJ9.fcJz4o5qYGH2x4Bm7MX5ugybWQoqK8Yv0k-GGhKO2i8",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"reason\": \"Inappropriate content\"\n}\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{URL}}/documents/66f176fc5f1aeb2aa9ec7f70/report",
+									"host": [
+										"{{URL}}"
+									],
+									"path": [
+										"documents",
+										"66f176fc5f1aeb2aa9ec7f70",
+										"report"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Moderate",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{refresh_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"approvalStatus\": \"approved\",\n  \"comments\": \"This document meets all criteria.\"\n}\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{URL}}/documents/{{document_id}}}/moderate",
+									"host": [
+										"{{URL}}"
+									],
+									"path": [
+										"documents",
+										"{{document_id}}}",
+										"moderate"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "FAQ",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{URL}}/faqs",
+					"host": [
+						"{{URL}}"
+					],
+					"path": [
+						"faqs"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "URL",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "first_name",
+			"value": "Jack",
+			"type": "string"
+		},
+		{
+			"key": "last_name",
+			"value": "Lee",
+			"type": "string"
+		},
+		{
+			"key": "email",
+			"value": "gerhardotto2000@gmail.com",
+			"type": "string"
+		},
+		{
+			"key": "password",
+			"value": "P@ssw0rd123",
+			"type": "string"
+		},
+		{
+			"key": "role",
+			"value": "admin",
+			"type": "string"
+		},
+		{
+			"key": "qualification",
+			"value": "BSc.",
+			"type": "string"
+		},
+		{
+			"key": "document_id",
+			"value": " 66eeafc5900cfab5f8b46fd6"
+		},
+		{
+			"key": "download_link",
+			"value": " "
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "password_reset_token",
+			"value": "W+tJQngjarttUpbA1gzRoA==",
+			"type": "string"
+		},
+		{
+			"key": "document_title",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "document_grade",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "document_subject",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "rating",
+			"value": "5",
+			"type": "string"
+		},
+		{
+			"key": "upload_url",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "download_url",
+			"value": ""
+		}
+	]
+}
