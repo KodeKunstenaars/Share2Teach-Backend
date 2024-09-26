@@ -4,12 +4,14 @@ import (
 	"backend/internal/models"
 	"backend/pkg/db"
 	"context"
+	"reflect"
+	"testing"
+	"time"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"reflect"
-	"testing"
 )
 
 var (
@@ -21,6 +23,24 @@ var (
 		Password:      "123",
 		Role:          "admin",
 		Qualification: "M.Sc.",
+	}
+	testDocument = models.Document{
+		ID:        primitive.NewObjectID(),
+		Title:     "Chapter 1 - Introduction to Go",
+		Subject:   "Computer Science",
+		Grade:     "12",
+		CreatedAt: time.Now(),
+		UserID:    testUserJoe.ID,
+		Moderated: false,
+		Reported:  false,
+		RatingID:  primitive.NewObjectID(),
+	}
+	testRating = models.Rating{
+		ID:            primitive.NewObjectID(),
+		DocID:         testDocument.ID,
+		TimesRated:    2,
+		TotalRating:   10,
+		AverageRating: 5,
 	}
 )
 
@@ -216,7 +236,32 @@ func TestMongoDBRepo_GetDocumentRating(t *testing.T) {
 		want    *models.Rating
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "get valid rating",
+			args: args{docID: testDocument.ID},
+			fields: fields{
+				ratingsCollection: &db.MongoCollectionMock{
+					FindOneFunc: func(ctx context.Context, filter interface{}, opts ...*options.FindOneOptions) *mongo.SingleResult {
+						return mongo.NewSingleResultFromDocument(testRating, nil, nil)
+					},
+				},
+			},
+			want:    &testRating,
+			wantErr: false,
+		},
+		{
+			name: "rating not found",
+			args: args{docID: testDocument.ID},
+			fields: fields{
+				ratingsCollection: &db.MongoCollectionMock{
+					FindOneFunc: func(ctx context.Context, filter interface{}, opts ...*options.FindOneOptions) *mongo.SingleResult {
+						return mongo.NewSingleResultFromDocument(nil, nil, nil)
+					},
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
