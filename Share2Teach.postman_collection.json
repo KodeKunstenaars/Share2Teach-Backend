@@ -1,9 +1,9 @@
 {
 	"info": {
-		"_postman_id": "861002f3-3e60-4dae-bb25-f41671f6fbab",
+		"_postman_id": "d50550ba-f27a-4e5d-883c-9660acf805e2",
 		"name": "Share2Teach",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "38515716"
+		"_exporter_id": "37664705"
 	},
 	"item": [
 		{
@@ -270,6 +270,16 @@
 								}
 							],
 							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{access_token}}",
+											"type": "string"
+										}
+									]
+								},
 								"method": "POST",
 								"header": [],
 								"body": {
@@ -282,13 +292,13 @@
 									}
 								},
 								"url": {
-									"raw": "{{URL}}/upload-document/confirm",
+									"raw": "{{URL}}/upload-document/",
 									"host": [
 										"{{URL}}"
 									],
 									"path": [
 										"upload-document",
-										"confirm"
+										""
 									]
 								}
 							},
@@ -335,7 +345,10 @@
 							"name": "Confirm",
 							"request": {
 								"method": "GET",
-								"header": []
+								"header": [],
+								"url": {
+									"raw": ""
+								}
 							},
 							"response": []
 						}
@@ -360,7 +373,38 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{URL}}/search?title={{document_title}}&subject&grade",
+									"raw": "{{URL}}/admin-search?title={{document_title}}&subject=&grade=",
+									"host": [
+										"{{URL}}"
+									],
+									"path": [
+										"admin-search"
+									],
+									"query": [
+										{
+											"key": "title",
+											"value": "{{document_title}}"
+										},
+										{
+											"key": "subject",
+											"value": ""
+										},
+										{
+											"key": "grade",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "User Search",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{URL}}/search?title={{document_title}}&subject=it&grade=",
 									"host": [
 										"{{URL}}"
 									],
@@ -374,22 +418,14 @@
 										},
 										{
 											"key": "subject",
-											"value": null
+											"value": "it"
 										},
 										{
 											"key": "grade",
-											"value": null
+											"value": ""
 										}
 									]
 								}
-							},
-							"response": []
-						},
-						{
-							"name": "User Search",
-							"request": {
-								"method": "GET",
-								"header": []
 							},
 							"response": []
 						}
@@ -433,7 +469,7 @@
 									"bearer": [
 										{
 											"key": "token",
-											"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJleGFtcGxlLmNvbSIsImV4cCI6MTcyNzEwMzczOCwiaWF0IjoxNzI3MTAyODM4LCJpc3MiOiJleGFtcGxlLmNvbSIsIm5hbWUiOiJKYWNrIExlZSIsInJvbGUiOiJhZG1pbiIsInN1YiI6IjY2ZjE3YjUyNWYxYWViMmFhOWVjN2Y3NiIsInR5cCI6IkpXVCJ9.fcJz4o5qYGH2x4Bm7MX5ugybWQoqK8Yv0k-GGhKO2i8",
+											"value": "{{access_token}}",
 											"type": "string"
 										}
 									]
@@ -450,13 +486,13 @@
 									}
 								},
 								"url": {
-									"raw": "{{URL}}/documents/66f176fc5f1aeb2aa9ec7f70/report",
+									"raw": "{{URL}}/documents/{{document_id}}/report",
 									"host": [
 										"{{URL}}"
 									],
 									"path": [
 										"documents",
-										"66f176fc5f1aeb2aa9ec7f70",
+										"{{document_id}}",
 										"report"
 									]
 								}
@@ -471,7 +507,7 @@
 									"bearer": [
 										{
 											"key": "token",
-											"value": "{{refresh_token}}",
+											"value": "{{access_token}}",
 											"type": "string"
 										}
 									]
@@ -488,13 +524,13 @@
 									}
 								},
 								"url": {
-									"raw": "{{URL}}/documents/{{document_id}}}/moderate",
+									"raw": "{{URL}}/documents/{{document_id}}/moderate",
 									"host": [
 										"{{URL}}"
 									],
 									"path": [
 										"documents",
-										"{{document_id}}}",
+										"{{document_id}}",
 										"moderate"
 									]
 								}
