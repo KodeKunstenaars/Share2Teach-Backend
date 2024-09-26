@@ -103,6 +103,7 @@ Built with **Go (Golang)** and utilising the **Chi router** for handling HTTP re
 * Git: Git `version 2.46.8` or higher installed on your machine
 * Postman: For API testing (Optional but recommended)
 * An IDE or Text Editor: Such as VS Code or GoLand
+* Docker installed onto your machine
   
 # Installation
 1. **Clone the Repository**
@@ -140,7 +141,31 @@ AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
 - Keep your `.env` file **secure** and do not commit it to version control.
 
 # Running the Application
-1. **Start the Server**
+
+**Using Docker**
+  1. **Build the Docker Image:**
+
+      Navigate to the project root directory (where your `Dockerfile` is located) and build the Docker image:
+  ```bash 
+   docker build --tag docker-share2teach .
+   ```
+  
+
+Explanation:
+- `docker build`: Command to build a Docker image from a Dockerfile.
+- `--tag docker -share2teach`: Tags the image with the name `docker -share2teach`
+- `.`: Specifies the current directory as the build context.
+
+2. **Run the Application container:**
+    
+    Run the following command:
+   ```bash 
+   docker run --env-file .env -p 8080:8080 docker-share2teach
+   ```
+
+
+
+3. **Start the Server**
    ```bash 
    go run ./cmd/api
    ```
