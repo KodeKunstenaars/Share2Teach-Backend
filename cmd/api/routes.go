@@ -47,8 +47,6 @@ func (app *application) routes() http.Handler {
 		mux.Post("/confirm", app.uploadDocumentMetadata)
 	})
 
-	// mux.Get("/admin/search", app.SearchDocuments)
-
 	mux.Get("/search", app.searchDocuments)
 
 	mux.Route("/admin/search", func(mux chi.Router) {
@@ -76,14 +74,20 @@ func (app *application) routes() http.Handler {
 	// Route for rating documents
 	mux.Post("/rate-document/{id}", app.rateDocument)
 
-	mux.Post("/rate-document/{id}", app.rateDocument)
+	// Route for reporting documents with authentication for all roles
+	mux.Route("/documents/{id}/report", func(mux chi.Router) {
+		// Require authentication for all roles
+		mux.Use(func(next http.Handler) http.Handler {
+			return app.authRequired(next, "educator", "moderator", "admin")
+		})
+
+		// Define the POST route for submitting a report
+		mux.Post("/", app.reportDocument)
+	})
 
 	mux.Post("/request-reset-password", app.requestPasswordReset)
 
 	mux.Post("/confirm-reset-password", app.verifyPasswordReset)
-
-	// Route for reporting documents
-	mux.Post("/documents/{id}/report", app.reportDocument)
 
 	return mux
 }
