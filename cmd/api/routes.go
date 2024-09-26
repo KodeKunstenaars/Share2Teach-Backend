@@ -24,15 +24,15 @@ func (app *application) routes() http.Handler {
 
 	mux.Get("/logout", app.logout)
 
-	mux.Route("/buckets", func(mux chi.Router) {
-		// Apply the authRequired middleware to require admin access
-		mux.Use(func(next http.Handler) http.Handler {
-			return app.authRequired(next, "admin")
-		})
-
-		// Route to list buckets (admin-only)
-		mux.Get("/", app.listBuckets)
-	})
+	//mux.Route("/buckets", func(mux chi.Router) {
+	//	// Apply the authRequired middleware to require admin access
+	//	mux.Use(func(next http.Handler) http.Handler {
+	//		return app.authRequired(next, "admin")
+	//	})
+	//
+	//	// Route to list buckets (admin-only)
+	//	mux.Get("/", app.listBuckets)
+	//})
 
 	mux.Route("/upload-document", func(mux chi.Router) {
 		// Apply the authRequired middleware to require user access
@@ -41,15 +41,15 @@ func (app *application) routes() http.Handler {
 		})
 
 		// Step 1: Route to generate a presigned URL for document upload
-		mux.Get("/presigned-url", app.generatePresignedURLForUpload)
+		mux.Get("/", app.generatePresignedURLForUpload)
 
 		// Step 2: Route to confirm document upload and store metadata
-		mux.Post("/confirm", app.uploadDocumentMetadata)
+		mux.Post("/", app.uploadDocumentMetadata)
 	})
 
 	mux.Get("/search", app.searchDocuments)
 
-	mux.Route("/admin/search", func(mux chi.Router) {
+	mux.Route("/admin-search", func(mux chi.Router) {
 
 		mux.Use(func(next http.Handler) http.Handler {
 			return app.authRequired(next, "admin", "moderator")
@@ -63,7 +63,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/faqs", app.FAQs)
 
 	// Route for moderating documents
-	mux.Route("/documents/{id}/moderate", func(mux chi.Router) {
+	mux.Route("/moderate-document/{id}", func(mux chi.Router) {
 		mux.Use(func(next http.Handler) http.Handler {
 			return app.authRequired(next, "moderator", "admin")
 		})
@@ -75,7 +75,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/rate-document/{id}", app.rateDocument)
 
 	// Route for reporting documents with authentication for all roles
-	mux.Route("/documents/{id}/report", func(mux chi.Router) {
+	mux.Route("/report-document/{id}", func(mux chi.Router) {
 		// Require authentication for all roles
 		mux.Use(func(next http.Handler) http.Handler {
 			return app.authRequired(next, "educator", "moderator", "admin")
