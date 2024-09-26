@@ -337,12 +337,12 @@ Detailed API documentation is available in the `docs` directory
 # Testing
 Run the test suite using:
 
-cd into the correct file directory.
+cd into the correct file directory. (`Share2Teach\internal\repository\dbrepo`)
 
 ```bash
-go test -v
+go test ./internal/repository/dbrepo -run TestMongoDBRepo
 ```
-This will execute all unit tests in the project.
+This will execute the unit test.
 
 **Note:** Ensure your test environment has access to test instances of your remote MongoDB database and AWS S3 bucket to avoid affecting production data.
 
