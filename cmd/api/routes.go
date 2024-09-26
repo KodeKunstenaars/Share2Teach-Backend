@@ -78,7 +78,7 @@ func (app *application) routes() http.Handler {
 	mux.Route("/documents/{id}/report", func(mux chi.Router) {
 		// Require authentication for all roles
 		mux.Use(func(next http.Handler) http.Handler {
-			return app.authRequired(next, "student", "educator", "moderator", "admin")
+			return app.authRequired(next, "educator", "moderator", "admin")
 		})
 
 		// Define the POST route for submitting a report
