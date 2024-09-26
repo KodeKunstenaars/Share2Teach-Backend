@@ -1,9 +1,10 @@
 {
 	"info": {
-		"_postman_id": "d50550ba-f27a-4e5d-883c-9660acf805e2",
+		"_postman_id": "1f7c9b7b-6024-443e-9eb0-430e47e5c978",
 		"name": "Share2Teach",
+		"description": "# Share2Teach API Documentation\n\nThis API provides functionalities for user management, document uploads, searches, and interactions in the Share2Teach application. It includes:\n\n- **User Routes**: Authentication, registration, password reset.\n    \n- **Document Routes**: Upload, download, and manage educational documents.\n    \n- **Search Routes**: Search for documents as a regular user or as an admin.\n    \n- **Interaction Routes**: Rate, report, and moderate documents.\n    \n\n## Authentication\n\nSome routes require different levels of authentication based on the user roles:\n\n### **Public Routes** (No Authentication Required):\n\n- **POST /authenticate**: Authenticate a user with email and password.\n    \n- **POST /register**: Register a new user.\n    \n- **GET /faqs**: Fetch frequently asked questions.\n    \n\n### **Protected Routes** (Authentication Required):\n\nThe following routes require **role-based authentication** and are restricted to specific user roles like `educator`, `moderator`, or `admin`. Authentication is handled by JWT tokens. You need to include the token in the `Authorization` header (e.g., `Authorization: Bearer` ).\n\n- **GET /refresh**: Refresh an expired access token.\n    \n- **GET /logout**: Logout the user and invalidate the token.\n    \n\n### **Role-Based Access for Protected Routes**:\n\n#### **/upload-document** (Accessible to `educator`, `moderator`, `admin`):\n\n- **GET /**: Generates a presigned URL for uploading documents to AWS.\n    \n- **POST /**: Confirm document upload and store metadata.\n    \n\n#### **/admin-search** (Accessible to `admin`, `moderator`):\n\n- **GET /**: Search for documents as an admin or moderator with additional privileges.\n    \n\n#### **/moderate-document/{id}** (Accessible to `moderator`, `admin`):\n\n- **PUT /**: Moderate documents and change their status (e.g., approve or reject them).\n    \n\n#### **/report-document/{id}** (Accessible to `educator`, `moderator`, `admin`):\n\n- **POST /**: Report a document for review by educators, moderators, or admins.\n    \n\n#### **/rate-document/{id}** (Requires authentication):\n\n- **POST /**: Rate a document based on its ID.\n    \n\n#### **/download-document/{id}** (Requires authentication):\n\n- **GET /**: Generate a presigned URL for downloading documents by document ID.\n    \n\n### **Password Reset**:\n\n- **POST /request-reset-password**: Request a password reset link via email.\n    \n- **POST /confirm-reset-password**: Confirm password reset using a token and set a new password.\n    \n\n---\n\n## Error Handling\n\nAll protected routes will return:\n\n- **401 Unauthorized**: If the request does not include a valid token or the user lacks the necessary role to access the route.\n    \n- **403 Forbidden**: If the user is authenticated but does not have permission to perform the action.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "37664705"
+		"_exporter_id": "38515716"
 	},
 	"item": [
 		{
@@ -31,7 +32,8 @@
 							"path": [
 								"register"
 							]
-						}
+						},
+						"description": "# Register a New User\n\nThis endpoint allows a new user to register for the Share2Teach platform. The user must provide their personal details, email, password, role, and qualification information.\n\n### **Request Body**:\n\nThe request body should be in **JSON** format and must include the following fields:\n\n- **first_name** (string, required): The user's first name.\n    \n    - Example: `\"Jack\"`\n        \n- **last_name** (string, required): The user's last name.\n    \n    - Example: `\"Lee\"`\n        \n- **email** (string, required): A valid email address that will be used for login and communications.\n    \n    - Example: `\"jacklee@example.com\"`\n        \n- **password** (string, required): The user's password. This should follow security best practices, such as including at least one uppercase letter, one number, and one special character.\n    \n    - Example: `\"P@ssw0rd123\"`\n        \n- **role** (string, required): The role assigned to the user. This defines their access level in the system (e.g., `admin`, `educator`, `moderator`, etc.).\n    \n    - Example: `\"admin\"`\n        \n- **qualification** (string, optional): The user's qualification or credentials, which may be relevant to their role on the platform.\n    \n    - Example: `\"BSc.\"`"
 					},
 					"response": []
 				},
@@ -72,7 +74,8 @@
 							"path": [
 								"authenticate"
 							]
-						}
+						},
+						"description": "# User Login\n\nThis endpoint allows an existing user to authenticate by providing their email and password. Upon successful authentication, a pair of JWT tokens (access and refresh) will be returned.\n\n### **Request Body**:\n\nThe request body should be in **JSON** format and must include the following fields:\n\n- **email** (string, required): The registered email address of the user.\n    \n    - Example: `\"jacklee@example.com\"`\n        \n- **password** (string, required): The user's password. This should be the same password that was set during registration.\n    \n    - Example: `\"P@ssw0rd123\"`"
 					},
 					"response": []
 				},
@@ -99,7 +102,8 @@
 							"path": [
 								"refresh"
 							]
-						}
+						},
+						"description": "# Refresh Access Token\n\nThis endpoint allows the user to refresh their access token using a valid refresh token. The refresh token is provided during the initial authentication (login) and can be used to obtain a new access token without re-entering the user's credentials.\n\n### **Headers**:\n\n- **Authorization** (string, required): The refresh token should be included in the `Authorization` header in the format:\n    \n    - `Bearer`"
 					},
 					"response": []
 				},
@@ -116,34 +120,8 @@
 							"path": [
 								"logout"
 							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Test Role",
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{access_token}}",
-									"type": "string"
-								}
-							]
 						},
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{URL}}/buckets",
-							"host": [
-								"{{URL}}"
-							],
-							"path": [
-								"buckets"
-							]
-						}
+						"description": "# User Logout\n\nThis endpoint logs out the authenticated user by invalidating the access and refresh tokens associated with their session. Once logged out, the user will need to log in again to obtain new tokens.\n\n### **Headers**:\n\n- **Authorization** (string, required): The access token should be included in the `Authorization` header in the format:\n    \n    - `Bearer`"
 					},
 					"response": []
 				},
@@ -169,7 +147,8 @@
 							"path": [
 								"request-reset-password"
 							]
-						}
+						},
+						"description": "# Request Password Reset\n\nThis endpoint allows a user to initiate a password reset process. The user must provide their registered email address, and if valid, a password reset token or link will be sent to their email.\n\n### **Request Body**:\n\nThe request body should be in **JSON** format and must include the following field:\n\n- **email** (string, required): The registered email address of the user who wants to reset their password.\n    \n    - Example: `\"jacklee@example.com\"`"
 					},
 					"response": []
 				},
@@ -186,11 +165,13 @@
 							"path": [
 								"confirm-reset-password"
 							]
-						}
+						},
+						"description": "# Confirm Password Reset\n\nThis endpoint allows a user to confirm their password reset by providing the password reset token (or unique key) received via email, along with the new password they want to set.\n\n### **Request Body**:\n\nThe request body should be in **JSON** format and must include the following fields:\n\n- **email** (string, required): The email address of the user who requested the password reset.\n    \n    - Example: `\"jacklee@example.com\"`\n        \n- **reset_token** (string, required): The unique token or key that was sent to the user’s email to verify their password reset request.\n    \n    - Example: `\"abcdef123456\"`\n        \n- **new_password** (string, required): The new password that the user wants to set. It should follow security best practices, such as including at least one uppercase letter, one number, and one special character.\n    \n    - Example: `\"NewP@ssw0rd123\"`"
 					},
 					"response": []
 				}
-			]
+			],
+			"description": "# User API\n\nThe User API contains endpoints for managing user authentication, registration, and password management. These endpoints enable users to register, log in, refresh tokens, and reset their passwords.\n\n### **Endpoints**:\n\n1. **POST /register**:\n    \n    - Allows a new user to register by providing their credentials (e.g., email, password, name, etc.).\n        \n    - No authentication required.\n        \n2. **POST /authenticate**:\n    \n    - Authenticates an existing user by verifying their credentials (email and password).\n        \n    - On success, returns an access token and a refresh token.\n        \n    - No authentication required.\n        \n3. **GET /refresh**:\n    \n    - Refreshes the user's access token using a valid refresh token.\n        \n    - Requires a valid refresh token in the Authorization header (`Authorization: Bearer` ).\n        \n4. **GET /logout**:\n    \n    - Logs out the authenticated user by invalidating their session or token.\n        \n    - Requires a valid access token.\n        \n5. **POST /request-reset-password**:\n    \n    - Initiates a password reset request by sending an email with a reset token.\n        \n    - No authentication required.\n        \n6. **POST /confirm-reset-password**:\n    \n    - Confirms a password reset request by verifying the reset token and setting a new password.\n        \n    - No authentication required.\n        \n\n### **Error Handling**:\n\n- **400 Bad Request**: Invalid input (e.g., missing required fields or invalid email format).\n    \n- **401 Unauthorized**: If authentication credentials are missing or invalid.\n    \n- **403 Forbidden**: If a user attempts to access a restricted route without the necessary permissions (for role-based routes).\n    \n- **500 Internal Server Error**: General server errors due to unexpected issues.\n    \n\n### **Note**:\n\n- All protected routes require a valid JWT token in the `Authorization` header.\n    \n- Role-based access control can be enforced on certain routes."
 		},
 		{
 			"name": "Document",
@@ -199,7 +180,7 @@
 					"name": "Upload",
 					"item": [
 						{
-							"name": "Presing",
+							"name": "Presign",
 							"event": [
 								{
 									"listen": "test",
@@ -229,15 +210,16 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{URL}}/upload-document/presigned-url",
+									"raw": "{{URL}}/upload-document/",
 									"host": [
 										"{{URL}}"
 									],
 									"path": [
 										"upload-document",
-										"presigned-url"
+										""
 									]
-								}
+								},
+								"description": "# Get Presigned URL for Document Upload\n\nThis endpoint generates a presigned URL for securely uploading a document to AWS S3. The presigned URL allows a user to upload a file directly to AWS without exposing the S3 bucket's credentials. This URL is valid for a limited time and must be used to upload the document within that window.\n\n### **Headers**:\n\n- **Authorization** (string, required): A valid JWT token must be provided in the `Authorization` header in the format:\n    \n    - `Bearer`"
 							},
 							"response": []
 						},
@@ -251,7 +233,8 @@
 									"host": [
 										"{{upload_url}}"
 									]
-								}
+								},
+								"description": "# Upload Document to AWS S3\n\nThis request allows you to upload a document directly to AWS S3 using the presigned URL that you obtained from the **GET /upload-document** endpoint. The presigned URL provides secure, temporary access to upload the file without exposing the AWS credentials."
 							},
 							"response": []
 						},
@@ -300,11 +283,13 @@
 										"upload-document",
 										""
 									]
-								}
+								},
+								"description": "# Confirm Document Upload and Store Metadata\n\nThis endpoint confirms that a document has been successfully uploaded to AWS S3 using the presigned URL and stores the document's metadata in the system. The metadata includes details like the document's title, subject, grade, and the user who uploaded it. This operation is restricted to users with roles such as `educator`, `moderator`, or `admin`.\n\n### **Headers**:\n\n- **Authorization** (string, required): A valid JWT token must be provided in the `Authorization` header in the format:\n    \n    - `Bearer`\n        \n\n### **Request Body**:\n\nThe request body should be in **JSON** format and must include the following fields:\n\n- **title** (string, required): The title of the document.\n    \n    - Example: `\"Math Tutorial - Algebra Basics\"`\n        \n- **subject** (string, required): The subject or category of the document (e.g., `Math`, `Science`).\n    \n    - Example: `\"Math\"`\n        \n- **grade** (string, required): The grade level the document is intended for.\n    \n    - Example: `\"10\"`\n        \n- **user_id** (string, required): The unique ID of the user who uploaded the document.\n    \n    - Example: `\"66f5cbcef2c7e6228998d57b\"`\n        \n- **s3_key** (string, required): The unique key or path for the document stored in AWS S3. This key is usually returned as part of the presigned URL upload process.\n    \n    - Example: `\"66f5cbcef2c7e6228998d57b\"`"
 							},
 							"response": []
 						}
-					]
+					],
+					"description": "# Document Upload API\n\nThe Document Upload API provides endpoints for uploading documents to the Share2Teach platform. The upload process involves generating a presigned URL for secure file upload to AWS S3, followed by confirming the upload and saving document metadata. These operations are restricted to users with specific roles (`educator`, `moderator`, `admin`).\n\n### **Endpoints**:\n\n1. **GET /upload-document** (Restricted: `educator`, `moderator`, `admin`):\n    \n    - This endpoint generates a presigned URL for securely uploading a document to AWS S3. The presigned URL is valid for a limited time and should be used to upload the actual document file.\n        \n2. **POST /upload-document** (Restricted: `educator`, `moderator`, `admin`):\n    \n    - Once the document is successfully uploaded to AWS S3 using the presigned URL, this endpoint is used to confirm the upload and store document metadata in the system.\n        \n    - The metadata includes fields like the document's title, subject, grade level, and the user's ID.\n        \n\n### **Upload Workflow**:\n\n1. **Step 1**: Request a presigned URL from the **GET /upload-document** endpoint.\n    \n    - The presigned URL will be used to upload the file directly to AWS S3.\n        \n2. **Step 2**: Upload the document to the presigned URL returned by the GET request. This operation is done via an HTTP PUT request to the S3 URL.\n    \n3. **Step 3**: Confirm the upload and store metadata by sending a POST request to the **POST /upload-document** endpoint with the relevant metadata for the document."
 				},
 				{
 					"name": "Download",
@@ -337,7 +322,8 @@
 										"download-document",
 										"{{document_id}}"
 									]
-								}
+								},
+								"description": "# Get Presigned URL for Document Download\n\nThis endpoint generates a presigned URL that allows the user to securely download a document from AWS S3. The presigned URL is valid for a limited time and can be used to retrieve the document directly from S3 using an HTTP GET request.\n\n### **Headers**:\n\n- **Authorization** (string, required): A valid JWT token must be provided in the `Authorization` header in the format:\n    \n    - `Bearer`\n        \n\n### **Path Parameters**:\n\n- **id** (string, required): The unique ID of the document that the user wishes to download.\n    \n    - Example: `\"66f5cbcef2c7e6228998d57b\"`"
 							},
 							"response": []
 						},
@@ -348,11 +334,13 @@
 								"header": [],
 								"url": {
 									"raw": ""
-								}
+								},
+								"description": "# Confirm Document Download\n\nThis endpoint confirms that a document download has been initiated or completed using a presigned URL. This can be used to log or track document downloads, ensuring that the system has a record of the download activity.\n\n### **Headers**:\n\n- **Authorization** (string, required): A valid JWT token must be provided in the `Authorization` header in the format:\n    \n    - `Bearer`\n        \n\n### **Path Parameters**:\n\n- **id** (string, required): The unique ID of the document that was downloaded.\n    \n    - Example: `\"66f5cbcef2c7e6228998d57b\"`"
 							},
 							"response": []
 						}
-					]
+					],
+					"description": "# Document Download API\n\nThe Document Download API provides endpoints for securely downloading documents stored on AWS S3. Users can request a presigned URL to download a specific document by its unique ID. The presigned URL ensures secure access to the document without exposing the underlying AWS credentials.\n\n### **Endpoints**:\n\n1. **GET /download-document/{id}** (Requires Authentication):\n    \n    - This endpoint generates a presigned URL for downloading a document from AWS S3. The URL is valid for a limited time and must be used within that period to access the document.\n        \n    - Users must provide the document's unique ID to receive the download URL.\n        \n\n### **Download Workflow**:\n\n1. **Step 1**: A user initiates a GET request to the `/download-document/{id}` endpoint with the document's ID.\n    \n2. **Step 2**: The API responds with a presigned URL, allowing the user to download the document directly from AWS S3.\n    \n3. **Step 3**: The user uses the presigned URL to perform an HTTP GET request and retrieve the document.\n    \n\n### **Role-Based Access Control**:\n\n- Only authenticated users with valid access tokens are allowed to download documents.\n    \n- Ensure the user has the appropriate access rights before requesting a document download.\n    \n\n### **Error Handling**:\n\n- **400 Bad Request**: If the document ID is invalid or missing.\n    \n- **401 Unauthorized**: If the user is not authenticated or the token is invalid.\n    \n- **403 Forbidden**: If the user does not have permission to download the document.\n    \n- **404 Not Found**: If the document does not exist or the user is not authorized to view it.\n    \n- **500 Internal Server Error**: If there is an issue generating the presigned URL or retrieving the document.\n    \n\n### **Notes**:\n\n- The **presigned URL** has an expiration time, after which the document will no longer be accessible using that URL.\n    \n- The presigned URL ensures that only authorized users can access the document.\n    \n- Once the presigned URL is generated, the document can be downloaded directly using the URL in an HTTP GET request."
 				},
 				{
 					"name": "Search",
@@ -373,7 +361,7 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{URL}}/admin-search?title={{document_title}}&subject=&grade=",
+									"raw": "{{URL}}/admin-search?title={{document_title}}&subject={{document_subject}}&grade={{document_grade}}",
 									"host": [
 										"{{URL}}"
 									],
@@ -387,14 +375,15 @@
 										},
 										{
 											"key": "subject",
-											"value": ""
+											"value": "{{document_subject}}"
 										},
 										{
 											"key": "grade",
-											"value": ""
+											"value": "{{document_grade}}"
 										}
 									]
-								}
+								},
+								"description": "# Admin Document Search\n\nThis endpoint allows administrators and moderators to perform a more detailed search for documents on the platform. In addition to the standard search parameters (title, subject, grade), this endpoint includes filters for moderation and report status, enabling content management tasks such as reviewing moderated or reported documents.\n\n### **Headers**:\n\n- **Authorization** (string, required): A valid JWT token must be provided in the `Authorization` header in the format:\n    \n    - `Bearer`\n        \n\n### **Query Parameters**:\n\n- **title** (string, optional): Filter documents by title or part of the title.\n    \n    - Example: `\"Algebra Basics\"`\n        \n- **subject** (string, optional): Filter documents by subject or category (e.g., Math, Science).\n    \n    - Example: `\"Math\"`\n        \n- **grade** (string, optional): Filter documents by the grade level.\n    \n    - Example: `\"10\"`\n        \n- **moderated** (boolean, optional): Filter documents by their moderation status (`true` for moderated, `false` for unmoderated).\n    \n    - Example: `true`\n        \n- **reported** (boolean, optional): Filter documents by their report status (`true` for reported documents, `false` for unreported).\n    \n    - Example: `true`"
 							},
 							"response": []
 						},
@@ -404,7 +393,7 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{URL}}/search?title={{document_title}}&subject=it&grade=",
+									"raw": "{{URL}}/search?title={{document_title}}&subject={{document_subject}}&grade={{document_grade}}",
 									"host": [
 										"{{URL}}"
 									],
@@ -418,18 +407,20 @@
 										},
 										{
 											"key": "subject",
-											"value": "it"
+											"value": "{{document_subject}}"
 										},
 										{
 											"key": "grade",
-											"value": ""
+											"value": "{{document_grade}}"
 										}
 									]
-								}
+								},
+								"description": "# User Document Search\n\nThis endpoint allows authenticated users to search for documents on the platform based on general criteria such as title, subject, and grade. It provides a way for users to find relevant educational materials without requiring admin or moderator privileges.\n\n### **Headers**:\n\n- **Authorization** (string, required): A valid JWT token must be provided in the `Authorization` header in the format:\n    \n    - `Bearer`\n        \n\n### **Query Parameters**:\n\n- **title** (string, optional): Filter documents by title or part of the title.\n    \n    - Example: `\"Algebra Basics\"`\n        \n- **subject** (string, optional): Filter documents by subject or category (e.g., Math, Science).\n    \n    - Example: `\"Math\"`\n        \n- **grade** (string, optional): Filter documents by the grade level.\n    \n    - Example: `\"10\"`"
 							},
 							"response": []
 						}
-					]
+					],
+					"description": "# Document Search API\n\nThe Document Search API provides endpoints for searching documents based on various criteria such as title, subject, and grade. It enables users to find relevant educational materials stored on the Share2Teach platform. Depending on the user’s role, different levels of search functionality are available (e.g., admin/moderator searches with additional privileges).\n\n### **Endpoints**:\n\n1. **GET /search** (Public):\n    \n    - This endpoint allows users to search for documents by providing search criteria such as title, subject, and grade.\n        \n    - This is a public search available to all authenticated users with no special permissions required.\n        \n2. **GET /admin-search** (Restricted: `moderator`, `admin`):\n    \n    - This endpoint allows administrators and moderators to search for documents with advanced privileges.\n        \n    - Admins and moderators can filter by additional criteria such as document moderation status and reported documents, enabling them to manage the content on the platform.\n        \n\n### **Search Parameters**:\n\n- **title** (string, optional): The title or part of the title of the document.\n    \n    - Example: `\"Algebra Basics\"`\n        \n- **subject** (string, optional): The subject or category of the document (e.g., `Math`, `Science`).\n    \n    - Example: `\"Math\"`\n        \n- **grade** (string, optional): The grade level the document is intended for.\n    \n    - Example: `\"10\"`\n        \n- **moderated** (boolean, admin-search only): Whether the document has been moderated.\n    \n    - Example: `true`\n        \n- **reported** (boolean, admin-search only): Whether the document has been reported for inappropriate content.\n    \n    - Example: `true`\n        \n\n### **Role-Based Access Control**:\n\n- **/search** is available to all authenticated users.\n    \n- **/admin-search** is restricted to users with roles such as `moderator` or `admin` to allow management of content through more detailed search parameters.\n    \n\n### **Error Handling**:\n\n- **400 Bad Request**: If search parameters are missing or invalid.\n    \n- **401 Unauthorized**: If the user is not authenticated.\n    \n- **403 Forbidden**: If the user does not have permission to perform an admin search.\n    \n- **500 Internal Server Error**: If something unexpected occurs during the search process.\n    \n\n### **Notes**:\n\n- The **public search** is available to all authenticated users and returns documents based on general search criteria such as title, subject, and grade.\n    \n- The **admin search** allows moderators and admins to search for documents based on moderation and report status, helping them manage the platform's content more effectively."
 				},
 				{
 					"name": "Interact",
@@ -457,7 +448,8 @@
 										"rate-document",
 										"{{document_id}}"
 									]
-								}
+								},
+								"description": "# Rate a Document\n\nThis endpoint allows authenticated users to rate a document based on its usefulness or quality. The rating is recorded and contributes to the overall rating of the document on the platform. Users can provide feedback to help others discover high-quality content.\n\n### **Headers**:\n\n- **Authorization** (string, required): A valid JWT token must be provided in the `Authorization` header in the format:\n    \n    - `Bearer`\n        \n\n### **Path Parameters**:\n\n- **id** (string, required): The unique ID of the document that the user wishes to rate.\n    \n    - Example: `\"66f5cbcef2c7e6228998d57b\"`\n        \n\n### **Request Body**:\n\nThe request body should be in **JSON** format and must include the following field:\n\n- **rating** (integer, required): The rating score the user wishes to give the document, typically ranging from 1 to 5 (depending on how your system handles ratings).\n    \n    - Example: `5`"
 							},
 							"response": []
 						},
@@ -486,16 +478,16 @@
 									}
 								},
 								"url": {
-									"raw": "{{URL}}/documents/{{document_id}}/report",
+									"raw": "{{URL}}/report-documents/{{document_id}}",
 									"host": [
 										"{{URL}}"
 									],
 									"path": [
-										"documents",
-										"{{document_id}}",
-										"report"
+										"report-documents",
+										"{{document_id}}"
 									]
-								}
+								},
+								"description": "# Report a Document\n\nThis endpoint allows users with roles such as `educator`, `moderator`, or `admin` to report a document for review. This can be used if a document contains inappropriate content, violates platform guidelines, or is otherwise unsuitable for the Share2Teach platform. The report will trigger a moderation process.\n\n### **Headers**:\n\n- **Authorization** (string, required): A valid JWT token must be provided in the `Authorization` header in the format:\n    \n    - `Bearer`\n        \n\n### **Path Parameters**:\n\n- **id** (string, required): The unique ID of the document that the user wishes to report.\n    \n    - Example: `\"66f5cbcef2c7e6228998d57b\"`\n        \n\n### **Request Body**:\n\nThe request body should be in **JSON** format and must include the following field:\n\n- **reason** (string, required): The reason for reporting the document. This should provide clear justification for why the document is being reported (e.g., inappropriate content, plagiarism, offensive material).\n    \n    - Example: `\"The document contains plagiarized content.\"`"
 							},
 							"response": []
 						},
@@ -533,13 +525,16 @@
 										"{{document_id}}",
 										"moderate"
 									]
-								}
+								},
+								"description": "# Moderate a Document\n\nThis endpoint allows users with roles such as `moderator` or `admin` to moderate a reported or newly uploaded document. Moderators or admins can approve or reject a document, ensuring that only appropriate content is made publicly available on the Share2Teach platform.\n\n### **Headers**:\n\n- **Authorization** (string, required): A valid JWT token must be provided in the `Authorization` header in the format:\n    \n    - `Bearer`\n        \n\n### **Path Parameters**:\n\n- **id** (string, required): The unique ID of the document that the moderator or admin wishes to review and moderate.\n    \n    - Example: `\"66f5cbcef2c7e6228998d57b\"`\n        \n\n### **Request Body**:\n\nThe request body should be in **JSON** format and must include the following fields:\n\n- **status** (string, required): The moderation status of the document. Can be set to `approved` or `rejected` based on the moderator’s decision.\n    \n    - Example: `\"approved\"`\n        \n- **comments** (string, optional): Any comments or notes from the moderator explaining the decision. This field is optional but can help track the reasons for approving or rejecting the document.\n    \n    - Example: `\"Document approved for public viewing.\"`"
 							},
 							"response": []
 						}
-					]
+					],
+					"description": "# Document Interaction\n\nThe Document Interaction API provides endpoints for users to engage with the content on the Share2Teach platform. This includes rating documents, reporting inappropriate content, and moderating documents. These actions help maintain the quality of the materials available on the platform by allowing users to provide feedback and for moderators or admins to review reported documents.\n\n### **Endpoints**:\n\n1. **POST /rate-document/{id}** (Requires Authentication):\n    \n    - This endpoint allows authenticated users to submit a rating for a specific document. Users can rate the document based on its usefulness or quality, and the rating will be stored in the system.\n        \n2. **POST /report-document/{id}** (Restricted: `educator`, `moderator`, `admin`):\n    \n    - This endpoint allows educators, moderators, or admins to report a document for review if it contains inappropriate content or is otherwise unsuitable for the platform. The report is sent for further moderation.\n        \n3. **PUT /moderate-document/{id}** (Restricted: `moderator`, `admin`):\n    \n    - This endpoint allows moderators and admins to moderate documents that have been reported or require approval. Moderators can either approve or reject documents for public visibility.\n        \n\n### **Role-Based Access Control**:\n\n- **Rate Document**: Available to all authenticated users.\n    \n- **Report Document**: Available to users with the roles of `educator`, `moderator`, or `admin`.\n    \n- **Moderate Document**: Restricted to users with the roles of `moderator` or `admin`.\n    \n\n### **Error Handling**:\n\n- **400 Bad Request**: If the request body is invalid or missing required fields.\n    \n- **401 Unauthorized**: If the user is not authenticated or lacks valid authorization.\n    \n- **403 Forbidden**: If the user does not have the necessary permissions to access a restricted endpoint.\n    \n- **500 Internal Server Error**: If something unexpected occurs during the interaction.\n    \n\n### **Notes**:\n\n- The rating system helps to rank and categorize documents based on user feedback, allowing other users to discover high-quality content more easily.\n    \n- The reporting feature enables educators, moderators, and admins to ensure the integrity of the platform by flagging inappropriate or low-quality content for review.\n    \n- Moderation ensures that reported content is reviewed and either approved or rejected by platform administrators."
 				}
-			]
+			],
+			"description": "# Document API\n\nThe Document API provides endpoints for uploading, downloading, and managing documents within the Share2Teach platform. These endpoints allow users to upload educational content, download documents, and interact with them through features like rating and reporting. The API also supports role-based access control for certain actions, ensuring that only authorized users (e.g., educators, moderators, or admins) can perform specific tasks.\n\n### **Endpoints**:\n\n1. **/upload-document** (Restricted: `educator`, `moderator`, `admin`):\n    \n    - **GET**: Generates a presigned URL for uploading a document to AWS.\n        \n    - **POST**: Confirms document upload and stores the metadata in the system (e.g., title, subject, grade).\n        \n2. **/download-document/{id}** (Requires Authentication):\n    \n    - **GET**: Generates a presigned URL to download a document by its unique ID.\n        \n3. **/search** (Public):\n    \n    - **GET**: Allows users to search for documents by title, subject, and grade.\n        \n4. **/admin-search** (Restricted: `moderator`, `admin`):\n    \n    - **GET**: Enables administrators and moderators to search for documents with advanced privileges (e.g., filtering by moderation status).\n        \n5. **/moderate-document/{id}** (Restricted: `moderator`, `admin`):\n    \n    - **PUT**: Moderators or admins can approve or reject documents for public viewing.\n        \n6. **/rate-document/{id}** (Requires Authentication):\n    \n    - **POST**: Allows authenticated users to rate a document based on its quality or relevance.\n        \n7. **/report-document/{id}** (Restricted: `educator`, `moderator`, `admin`):\n    \n    - **POST**: Allows educators, moderators, or admins to report documents for review if inappropriate content is found.\n        \n\n### **Role-Based Access Control**:\n\nSeveral endpoints within the Document API are protected and can only be accessed by users with specific roles:\n\n- **Educators** can upload documents and report content.\n    \n- **Moderators** can moderate, search, and report documents.\n    \n- **Admins** have full access to upload, download, search, moderate, and report documents.\n    \n\n### **Error Handling**:\n\n- **400 Bad Request**: If required fields are missing or invalid.\n    \n- **401 Unauthorized**: If the request lacks valid authentication (e.g., missing or expired JWT token).\n    \n- **403 Forbidden**: If the user does not have the necessary role to access a restricted endpoint.\n    \n- **500 Internal Server Error**: If something unexpected occurs during document processing.\n    \n\n### **Notes**:\n\n- All document uploads are managed through AWS S3, and a presigned URL must be obtained before uploading a file.\n    \n- Users can rate and report documents, helping maintain quality control on the platform.\n    \n- Document metadata includes fields such as `title`, `subject`, `grade`, `user_id`, `moderation status`, and `rating`."
 		},
 		{
 			"name": "FAQ",
@@ -554,7 +549,8 @@
 					"path": [
 						"faqs"
 					]
-				}
+				},
+				"description": "# Get Frequently Asked Questions (FAQs)\n\nThis endpoint retrieves a list of frequently asked questions (FAQs) available on the Share2Teach platform. The FAQs provide answers to common questions users may have about the platform, its features, and usage.\n\n### **Headers**:\n\n- **Authorization**: This endpoint does not require authentication and is accessible to all users."
 			},
 			"response": []
 		}
@@ -599,7 +595,7 @@
 		},
 		{
 			"key": "email",
-			"value": "gerhardotto2000@gmail.com",
+			"value": "jacklee@example.com",
 			"type": "string"
 		},
 		{
@@ -619,20 +615,16 @@
 		},
 		{
 			"key": "document_id",
-			"value": " 66eeafc5900cfab5f8b46fd6"
-		},
-		{
-			"key": "download_link",
-			"value": " "
+			"value": "66f5cbcef2c7e6228998d57b"
 		},
 		{
 			"key": "access_token",
-			"value": "",
+			"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJleGFtcGxlLmNvbSIsImV4cCI6MTcyNzM4NTM3NiwiaWF0IjoxNzI3Mzg0NDc2LCJpc3MiOiJleGFtcGxlLmNvbSIsIm5hbWUiOiJKYWNrIExlZSIsInJvbGUiOiJhZG1pbiIsInN1YiI6IjY2ZjVjYjk1ZjJjN2U2MjI4OTk4ZDU3YSIsInR5cCI6IkpXVCJ9.CI1s6_znfaf26Fbxqm_PuRLKM4-2UkNgF_Bf-RLWNAM",
 			"type": "string"
 		},
 		{
 			"key": "refresh_token",
-			"value": "",
+			"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3Mjc0NzA4NzYsImlhdCI6MTcyNzM4NDQ3Niwicm9sZSI6ImFkbWluIiwic3ViIjoiT2JqZWN0SUQoXCI2NmY1Y2I5NWYyYzdlNjIyODk5OGQ1N2FcIikifQ.omZmoMfsTm51HR0D1dqjM9VObo87WCzX9mw6pUbLPpU",
 			"type": "string"
 		},
 		{
@@ -642,17 +634,17 @@
 		},
 		{
 			"key": "document_title",
-			"value": "",
+			"value": "Math Tutorial - Algebra Basics",
 			"type": "string"
 		},
 		{
 			"key": "document_grade",
-			"value": "",
+			"value": "10",
 			"type": "string"
 		},
 		{
 			"key": "document_subject",
-			"value": "",
+			"value": "Math",
 			"type": "string"
 		},
 		{
@@ -662,12 +654,12 @@
 		},
 		{
 			"key": "upload_url",
-			"value": "",
+			"value": "https://share2teach.s3.eu-north-1.amazonaws.com/66f5cbcef2c7e6228998d57b?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAXTORPQNGHEGBJJ5O%2F20240926%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20240926T210206Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&x-id=PutObject&X-Amz-Signature=ebe171fae74999e7624437645c7e0fcc6a8048aa1fc8a18c0b77812254004891",
 			"type": "string"
 		},
 		{
 			"key": "download_url",
-			"value": ""
+			"value": "https://share2teach.s3.eu-north-1.amazonaws.com/66f5cbcef2c7e6228998d57b?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAXTORPQNGHEGBJJ5O%2F20240926%2Feu-north-1%2Fs3%2Faws4_request&X-Amz-Date=20240926T210313Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&x-id=GetObject&X-Amz-Signature=b133f38da0cdfe220f89462a1ccdebe14322cfe9aeae19f6c0cb0c46314473cb"
 		}
 	]
 }
