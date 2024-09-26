@@ -67,10 +67,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	app.DB = &dbrepo.MongoDBRepo{
-		Client:   conn,
-		Database: "Share2Teach",
-	}
+	//app.DB = &dbrepo.MongoDBRepo{
+	//	Client:   conn,
+	//	Database: "Share2Teach",
+	//}
+	app.DB = dbrepo.NewMongoDBRepo(conn, "Share2Teach")
 
 	defer func() {
 		if err := conn.Disconnect(context.TODO()); err != nil {
