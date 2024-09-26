@@ -160,12 +160,14 @@ Explanation:
     
     Run the following command:
    ```bash 
-   docker run --env-file .env -p 8080:8080 docker-share2teach
+   docker run --env-file .env -e RUNNING_IN_DOCKER=true -p 8080:8080 docker-share2teach
    ```
 
+    **Note:** In the terminal, 2 confirmation messages will appear: "Connected to Mongo!" and "Starting application on port 8080"
 
 
-3. **Start the Server**
+
+1. **Start the Server Locally**
    ```bash 
    go run ./cmd/api
    ```
