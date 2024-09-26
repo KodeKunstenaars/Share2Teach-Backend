@@ -75,9 +75,7 @@ func (app *application) routes() http.Handler {
 
 	// Route for rating documents
 	mux.Post("/rate-document/{id}", app.rateDocument)
-
-	mux.Post("/rate-document/{id}", app.rateDocument)
-
+	
 	mux.Post("/request-reset-password", app.requestPasswordReset)
 
 	mux.Post("/confirm-reset-password", app.verifyPasswordReset)
