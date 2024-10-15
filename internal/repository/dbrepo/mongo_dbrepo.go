@@ -119,9 +119,6 @@ func (m *MongoDBRepo) FindDocuments(title, subject, grade string, correctRole bo
 	collection := m.metadataCollection
 
 	// Creates a filter for the query that only searches for the given parameters
-	// Search query for the parameters that is case-insensitive
-	// Creates a filter for the query that only searches for the given parameters
-	// Search query for the parameters that is case-insensitive
 	filter := bson.M{}
 
 	if title != "" {
@@ -131,7 +128,6 @@ func (m *MongoDBRepo) FindDocuments(title, subject, grade string, correctRole bo
 		filter["subject"] = bson.M{"$regex": primitive.Regex{Pattern: subject, Options: "i"}}
 	}
 	if grade != "" {
-
 		normalizedGrade := strings.ToLower(strings.TrimSpace(grade))
 		normalizedGrade = strings.ReplaceAll(normalizedGrade, " ", "")
 		normalizedGrade = strings.TrimPrefix(normalizedGrade, "grade")
@@ -140,14 +136,17 @@ func (m *MongoDBRepo) FindDocuments(title, subject, grade string, correctRole bo
 			{"grade": normalizedGrade},
 			{"grade": bson.M{"$regex": primitive.Regex{Pattern: normalizedGrade, Options: "i"}}},
 		}
-
 	}
+
 	if correctRole == true {
+		// Admin or moderator role, allow viewing of all documents except denied
 		filter["moderated"] = bson.M{"$in": []bool{true, false}}
-		//filter["reported"] = bson.M{"$in": []bool{true, false}}
+		//filter["approvalStatus"] = bson.M{"$ne": "denied"}
 	} else {
+		// Regular user, only show approved documents
 		filter["moderated"] = true
 		filter["reported"] = false
+		filter["approvalStatus"] = "approved"
 	}
 
 	// Cursor that loops through the DB to find the matching documents
@@ -175,7 +174,6 @@ func (m *MongoDBRepo) FindDocuments(title, subject, grade string, correctRole bo
 	}
 
 	return documents, nil
-
 }
 
 func (m *MongoDBRepo) GetFAQs() ([]models.FAQs, error) {

@@ -391,30 +391,31 @@ func (app *application) searchDocuments(w http.ResponseWriter, r *http.Request) 
 }
 
 func (app *application) searchDocumentsAdminOrModerator(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Query().Get("title")
-	subject := r.URL.Query().Get("subject")
-	grade := r.URL.Query().Get("grade")
-	correctRole := true
+    title := r.URL.Query().Get("title")
+    subject := r.URL.Query().Get("subject")
+    grade := r.URL.Query().Get("grade")
+    correctRole := true
 
-	// finds the documents that match the given title
-	documents, err := app.DB.FindDocuments(title, subject, grade, correctRole)
-	if err != nil {
-		app.errorJSON(w, fmt.Errorf("error finding documents: %v", err), http.StatusInternalServerError)
-		log.Println("error finding documents:", err)
-		return
-	}
+    // finds the documents that match the given title
+    documents, err := app.DB.FindDocuments(title, subject, grade, correctRole)
+    if err != nil {
+        app.errorJSON(w, fmt.Errorf("error finding documents: %v", err), http.StatusInternalServerError)
+        log.Println("error finding documents:", err)
+        return
+    }
 
-	if len(documents) == 0 {
-		app.errorJSON(w, fmt.Errorf("no documents found"), http.StatusNotFound)
-		return
-	}
+    if len(documents) == 0 {
+        app.errorJSON(w, fmt.Errorf("no documents found"), http.StatusNotFound)
+        return
+    }
 
-	err = app.writeJSON(w, http.StatusOK, documents)
-	if err != nil {
-		app.errorJSON(w, fmt.Errorf("error encoding response: %v", err), http.StatusInternalServerError)
-		return
-	}
+    err = app.writeJSON(w, http.StatusOK, documents)
+    if err != nil {
+        app.errorJSON(w, fmt.Errorf("error encoding response: %v", err), http.StatusInternalServerError)
+        return
+    }
 }
+
 
 func (app *application) generatePresignedURLForDownload(w http.ResponseWriter, r *http.Request) {
 	documentIDStr := chi.URLParam(r, "id")
@@ -667,6 +668,7 @@ func (app *application) moderateDocument(w http.ResponseWriter, r *http.Request)
 	update := bson.M{
 		"$set": bson.M{
 			"moderated": true,
+			"approvalStatus": payload.ApprovalStatus, // Store approval status ("approved" or "denied")
 		},
 	}
 
